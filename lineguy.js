@@ -43,40 +43,42 @@ addGuy();
 
 window.setInterval(runFrame, 10);
 window.addEventListener("keydown", event => {
-	
+	var guy = guys[0];
 	newTransition = {
-		startState: getCurrentState(guys[0]),
+		startState: getCurrentState(guy),
 		start: Date.now(),
 		end: Date.now() + 200
 	}
 
 	switch(event.key) {
 		case "p":
-			guys[0].punching.end = Date.now() + 100;
+			guy.punching.end = Date.now() + 100;
 			break;
 		case " ":
-			guys[0].NYV = 15 * scale;
+			guy.NYV = 15 * scale;
+			newTransition.endState = direction(guy) == 1 ? jumping : reflect(jumping);
+			guy.transition = newTransition;
 			break;
 		case "a":
-			if(guys[0].running != -1){
-				newTransition.endState = getLeftRunningState(200);
-				guys[0].transition = newTransition;
-				guys[0].running = -1;
+			if(guy.running != -1){
+				newTransition.endState = guy.falling ? reflect(jumping) : getLeftRunningState(200);
+				guy.transition = newTransition;
+				guy.running = -1;
 			}
 			break;
 		case "s":
-			if(guys[0].running != 0){
-				newTransition.endState = guys[0].running == 1 ? standing : reflect(standing);
-				guys[0].transition = newTransition;
-				guys[0].last = guys[0].running;
-				guys[0].running = 0;
+			if(guy.running != 0){
+				newTransition.endState = guy.running == 1 ? standing : reflect(standing);
+				guy.transition = newTransition;
+				guy.last = guy.running;
+				guy.running = 0;
 			}
 			break;
 		case "d":
-			if(guys[0].running != 1){
-				newTransition.endState = getRunningState(200);
-				guys[0].transition = newTransition;
-				guys[0].running = 1;
+			if(guy.running != 1){
+				newTransition.endState = guys.falling ? jumping : getRunningState(200);
+				guy.transition = newTransition;
+				guy.running = 1;
 			}
 			break;
 	}
@@ -110,6 +112,7 @@ function addGuy(){
 	guy.NYV = 0;
 	guy.running = 1;
 	guy.last = 1;
+	guy.falling = false;
 
 	guys.push(guy);
 }
@@ -227,6 +230,32 @@ function runFrame(){
 
 		guy.y -= guy.NYV / 4 * scale;
 		
+		var p = onPlatform(guy)
+		if(!p){
+			guy.NYV -= scale / 2;
+			
+			setState(direction(guy) == -1 ? reflect(jumping) : jumping, guy);
+		}else{			
+			if(guy.falling){
+				guy.transition = {
+					startState: direction(guy) == -1 ? reflect(jumping) : jumping, guy,
+					start: Date.now(),
+					end: Date.now() + 100
+				}
+
+				if(guy.running){
+					guy.transition.endState = guy.running == 1 ? getRunningState(100) : getLeftRunningState(100);
+				}else{
+					guy.transition.endState = guy.last == 1 ? standing : reflect(standing);
+				}
+			}
+
+			guy.NYV = 0;
+			guy.y = p.y - (scale * 50);
+		}
+		
+		guy.falling = !p;
+		
 		if(guy.transition.end && Date.now() < guy.transition.end){
 			var frame = Date.now() - guy.transition.start;
 			var d = guy.transition.end - guy.transition.start;
@@ -242,16 +271,6 @@ function runFrame(){
 
 			setState(coolState, guy);
 		}	
-		
-		var p = onPlatform(guy)
-		if(!p){
-			guy.NYV -= scale / 2;
-			
-			setState(guy.running == -1 ? reflect(jumping) : jumping, guy);
-		}else{
-			guy.NYV = 0;
-			guy.y = p.y - (scale * 50);
-		}
 
 		if(guy.punching.end && Date.now() < guy.punching.end){
 			setState(guy.running == 1 || (!guy.running && guy.last == 1) ? punch : reflect(punch), guy);
@@ -281,9 +300,13 @@ function onPlatform(guy){
 	return platforms.find(p => {
 		var A = {x: p.sx, y: p.y}
 		var B = {x: p.ex, y: p.y}
-		var C = {x: guy.x, y: guy.y + (scale * 50) - 10};
-		var D = {x: guy.x, y: guy.y + (scale * 50) - guy.NYV + 10};
+		var C = {x: guy.x, y: guy.y + (scale * 50) - 1};
+		var D = {x: guy.x, y: guy.y + (scale * 50) - guy.NYV + 1};
 
 		return ccw(A,C,D) != ccw(B,C,D) && ccw(A,B,C) != ccw(A,B,D)
 	});
+}
+
+function direction(guy){
+	return guy.running ? guy.running : guy.last;
 }
