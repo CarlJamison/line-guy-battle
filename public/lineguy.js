@@ -4,6 +4,8 @@ var ctx = canvas.getContext("2d");
 var width = Math.floor(window.innerWidth / scale) - 10;
 var height = Math.floor(window.innerHeight / scale) - 10;
 var rtod = Math.PI / 180;
+var socket = io("/view");
+
 canvas.width = width * scale;
 canvas.height = height * scale;
 
@@ -39,7 +41,17 @@ var guys = [];
 
 addGuy();
 
-addGuy();
+socket.on('fire', () => {
+	var guy = guys[0];
+	newTransition = {
+		startState: getCurrentState(guy),
+		start: Date.now(),
+		end: Date.now() + 200
+	}
+	guy.NYV = 15 * scale;
+	newTransition.endState = direction(guy) == 1 ? jumping : reflect(jumping);
+	guy.transition = newTransition;
+})
 
 window.setInterval(runFrame, 10);
 window.addEventListener("keydown", event => {
