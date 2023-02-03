@@ -17,19 +17,24 @@
     </div>
     <div id="zone_joystick" style="left: 50%; width: 50%; height: 100%; position: absolute;"></div>
     <script>
-      
+
       var options = {
         zone: document.getElementById('zone_joystick'),
         color: "red", size: 250,
         position: {left: '50%', top: '50%'},        // preset position for 'static' mode
         mode: 'static',
+        restJoystick: true
       };
       var manager = nipplejs.create(options);
 
       var socket = io("/controller");
 
       manager.on('move', function (evt, data) {
-        socket.emit('direction change', { radian: data.angle.radian, vector: data.vector });
+        socket.emit('direction change', { vector: data.vector });
+      });
+
+      manager.on('end', function (evt, data) {
+        socket.emit('direction change', { vector: { x: 0, y: 0 } });
       });
 
       var el=document.getElementById("fire_button"); 

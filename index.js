@@ -3,47 +3,34 @@ const app = express();
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
 const port = process.env.PORT || 3000;
-
-var players = 1;
+const { v4: uuidv4 } = require('uuid');
 
 app.use(express.static(__dirname + '/public'));
 app.get('/nipplejs.js', (req, res) => {
   res.sendFile(__dirname + '/node_modules/nipplejs/dist/nipplejs.js');
 });
+
 var view = io.of("/view");
 var controllers = io.of("/controller")
-var settings = io.of("/settings")
 
-controllers.on('connection', (socket) => {
+controllers.on('connection', socket => {
+  var id = uuidv4();
 
-  var playerNumber = players;
-  players++;
+  view.emit('connection', id);
 
   socket.on('fire', msg => {
-    view.emit('fire', playerNumber);
+    msg.id = id;
+    view.emit('fire', msg);
   });
+  
   socket.on('disconnect', msg => {
-    console.log("Player " + playerNumber + " disconnected: " + socket.client.conn.remoteAddress);
-    view.emit('remove player', playerNumber);
+    console.log("Player " + id + " disconnected");
+    view.emit('remove player', id);
   });
+
   socket.on('direction change', msg => {
-    msg.player = playerNumber;
+    msg.id = id;
     view.emit('direction change', msg);
-  });
-});
-
-settings.on('connection', (socket) => {
-
-  socket.on('update settings', msg => {
-    view.emit('update settings', msg);
-  });
-
-  socket.on('start game', msg => {
-    view.emit('start game', msg);
-  });
-
-  socket.on('reset game', msg => {
-    view.emit('reset game', msg);
   });
 });
 

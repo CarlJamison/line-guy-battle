@@ -31,7 +31,17 @@ var punch = {
 	la: 10, lf: -10, ra: 140, rf: 35
 }
 
-ctx.shadowColor = "black";
+var playerColors = [
+	"#32a852",
+	"#00d5ff",
+	"#ff00fb",
+	"#ff0000",
+	"#f2ff00",
+	"#ff9d00",
+	"#1500ff",
+	"#c300ff"
+];
+
 ctx.shadowBlur = 2;
 ctx.lineWidth = 2 * scale;
 ctx.lineJoin = "round";
@@ -39,64 +49,56 @@ ctx.lineCap = "round";
 
 var guys = [];
 
-addGuy();
+socket.on('connection', id => addGuy(id));
 
-socket.on('fire', () => {
-	var guy = guys[0];
+socket.on('direction change', event => {
+	var guy = getGuy(event.id);
 	newTransition = {
 		startState: getCurrentState(guy),
+		start: Date.now(),
+		end: Date.now() + 200
+	}
+	if(event.vector.x < -0.1){
+		if(guy.running != -1){
+			newTransition.endState = guy.falling ? reflect(jumping) : getLeftRunningState(200);
+			guy.running = -1;
+		}
+	}else if(event.vector.x > 0.1){
+		if(guy.running != 1){
+			newTransition.endState = guys.falling ? jumping : getRunningState(200);
+			guy.running = 1;
+		}
+	}else{
+		if(guy.running != 0){
+			newTransition.endState = guy.running == 1 ? standing : reflect(standing);
+			guy.last = guy.running;
+			guy.running = 0;
+		}
+	}
+
+	if(newTransition.endState) guy.transition = newTransition;
+});
+
+socket.on('fire', msg => {
+	var guy = getGuy(msg.id);
+	guy.transition = {
+		startState: getCurrentState(guy),
+		endState: direction(guy) == 1 ? jumping : reflect(jumping),
 		start: Date.now(),
 		end: Date.now() + 200
 	}
 	guy.NYV = 15 * scale;
-	newTransition.endState = direction(guy) == 1 ? jumping : reflect(jumping);
-	guy.transition = newTransition;
-})
-
-window.setInterval(runFrame, 10);
-window.addEventListener("keydown", event => {
-	var guy = guys[0];
-	newTransition = {
-		startState: getCurrentState(guy),
-		start: Date.now(),
-		end: Date.now() + 200
-	}
-
-	switch(event.key) {
-		case "p":
-			guy.punching.end = Date.now() + 100;
-			break;
-		case " ":
-			guy.NYV = 15 * scale;
-			newTransition.endState = direction(guy) == 1 ? jumping : reflect(jumping);
-			guy.transition = newTransition;
-			break;
-		case "a":
-			if(guy.running != -1){
-				newTransition.endState = guy.falling ? reflect(jumping) : getLeftRunningState(200);
-				guy.transition = newTransition;
-				guy.running = -1;
-			}
-			break;
-		case "s":
-			if(guy.running != 0){
-				newTransition.endState = guy.running == 1 ? standing : reflect(standing);
-				guy.transition = newTransition;
-				guy.last = guy.running;
-				guy.running = 0;
-			}
-			break;
-		case "d":
-			if(guy.running != 1){
-				newTransition.endState = guys.falling ? jumping : getRunningState(200);
-				guy.transition = newTransition;
-				guy.running = 1;
-			}
-			break;
-	}
 });
 
-function addGuy(){
+socket.on('remove player', id => guys = guys.filter(g => id != g.id));
+
+window.setInterval(runFrame, 10);
+
+function getGuy(id){
+	return guys.find(g => g.id == id) ?? addGuy(id);
+}
+
+function addGuy(id){
 	var guy = {y: height / 2, x: width / 2};
 
 	var la = {l: 11 * scale, a: 45, p: guy};
@@ -117,7 +119,7 @@ function addGuy(){
 	neck.c = [head];
 	ab.c = [lt, rt];
 	guy.c = [ab, la, ra, neck];
-
+	guy.id = id;
 	guy.state = { rt, rl, ll, lt, la, lf, ra, rf, head, neck, ab};
 	guy.punching = { start: 0, end: 0 }
 	guy.transition = { end: 0 };
@@ -125,11 +127,15 @@ function addGuy(){
 	guy.running = 1;
 	guy.last = 1;
 	guy.falling = false;
-
+	guy.color = playerColors.find(c => !guys.some(g => g.color == c));
 	guys.push(guy);
+
+	return guy;
 }
 
 function renderPlatforms(){
+	ctx.shadowColor = ctx.strokeStyle = "black";
+
 	ctx.beginPath();
 	platforms.forEach(p => {
 		ctx.moveTo(p.sx, p.y);
@@ -287,7 +293,8 @@ function runFrame(){
 		if(guy.punching.end && Date.now() < guy.punching.end){
 			setState(guy.running == 1 || (!guy.running && guy.last == 1) ? punch : reflect(punch), guy);
 		}
-
+		ctx.shadowColor = ctx.strokeStyle = guy.color;
+		
 		renderNode(guy);
 	});
 
