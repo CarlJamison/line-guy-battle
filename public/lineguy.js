@@ -48,6 +48,7 @@ ctx.lineJoin = "round";
 ctx.lineCap = "round";
 
 var guys = [];
+var bullets = [];
 
 socket.on('connection', id => addGuy(id));
 
@@ -81,18 +82,49 @@ socket.on('direction change', event => {
 
 socket.on('fire', msg => {
 	var guy = getGuy(msg.id);
-	guy.transition = {
-		startState: getCurrentState(guy),
-		endState: direction(guy) == 1 ? jumping : reflect(jumping),
-		start: Date.now(),
-		end: Date.now() + 200
+
+	if(msg.action == 0){
+		guy.transition = {
+			startState: getCurrentState(guy),
+			endState: direction(guy) == 1 ? jumping : reflect(jumping),
+			start: Date.now(),
+			end: Date.now() + 200
+		}
+		guy.NYV = 15 * scale;
+	}else{
+		bullets.push({
+			x: guy.state.rf.x, 
+			y: guy.state.rf.y, 
+			xV: direction(guy) * 5,
+			yV: 0
+		});
 	}
-	guy.NYV = 15 * scale;
 });
 
 socket.on('remove player', id => guys = guys.filter(g => id != g.id));
 
 window.setInterval(runFrame, 10);
+
+function drawHandgun(x, y){
+	
+	ctx.shadowColor = ctx.strokeStyle = "black";
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+	ctx.moveTo(x, y);
+	ctx.lineTo(x + 5, y);
+	ctx.lineTo(x + 5, y - 3);
+	ctx.stroke();
+
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	ctx.moveTo(x + 10, y - 3);
+	ctx.lineTo(x, y - 3);
+	ctx.moveTo(x + 2, y - 3);
+	ctx.lineTo(x - 1, y + 3);
+	
+	ctx.stroke();
+}
+
 
 function getGuy(id){
 	return guys.find(g => g.id == id) ?? addGuy(id);
@@ -140,6 +172,20 @@ function renderPlatforms(){
 	platforms.forEach(p => {
 		ctx.moveTo(p.sx, p.y);
 		ctx.lineTo(p.ex, p.y);
+	});
+	
+	ctx.stroke();
+}
+
+function renderBullets(){
+	ctx.shadowColor = ctx.strokeStyle = "black";
+
+	ctx.beginPath();
+	bullets.forEach(b => {
+		ctx.moveTo(b.x, b.y);
+		ctx.lineTo(b.x + (b.xV / 2), b.y + (b.yV / 2));
+		b.x += b.xV;
+		b.y += b.yV;
 	});
 	
 	ctx.stroke();
@@ -296,9 +342,17 @@ function runFrame(){
 		ctx.shadowColor = ctx.strokeStyle = guy.color;
 		
 		renderNode(guy);
+		ctx.translate(guy.state.rf.x, guy.state.rf.y);
+		ctx.rotate(guy.state.rf.a * rtod); 
+		if(guy.state.rf.a > 90 ) ctx.scale(1, -1);
+		drawHandgun(0, 0);
+		if(guy.state.rf.a > 90 ) ctx.scale(1, -1);
+		ctx.rotate(-guy.state.rf.a * rtod); 
+		ctx.translate(-guy.state.rf.x, -guy.state.rf.y);
 	});
 
 	renderPlatforms();
+	renderBullets();
 }
 
 function reflect(state){

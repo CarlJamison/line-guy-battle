@@ -19,10 +19,9 @@ controllers.on('connection', socket => {
   view.emit('connection', id);
 
   socket.on('fire', msg => {
-    msg.id = id;
-    view.emit('fire', msg);
+    view.emit('fire', { action: msg, id });
   });
-  
+
   socket.on('disconnect', msg => {
     console.log("Player " + id + " disconnected");
     view.emit('remove player', id);

@@ -8,10 +8,16 @@
     <script src="/nipplejs.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <div style="width: 50%; height: 100%; position: fixed">
-      <button id="fire_button" onclick="fire()" style="
-        width: 50%; height: 50%;
+      <button id="jump_button" onclick="fire(0)" style="
+        width: 50%; height: 30%;
         background-color: red;
         touch-action: manipulation;
+        border: none; border-radius: 5px;
+        top: 25%; position: relative; left: 25%;"></button>
+      <button id="fire_button" onclick="fire(1)"  style="
+        width: 50%; height: 30%;
+        touch-action: manipulation;
+        background-color: red;
         border: none; border-radius: 5px;
         top: 25%; position: relative; left: 25%;"></button>
     </div>
@@ -23,7 +29,6 @@
         color: "red", size: 250,
         position: {left: '50%', top: '50%'},        // preset position for 'static' mode
         mode: 'static',
-        restJoystick: true
       };
       var manager = nipplejs.create(options);
 
@@ -37,12 +42,12 @@
         socket.emit('direction change', { vector: { x: 0, y: 0 } });
       });
 
-      var el=document.getElementById("fire_button"); 
-      el.ontouchstart = fire;
+      document.getElementById("fire_button").ontouchstart = fire(0);
+      document.getElementById("jump_button").ontouchstart = fire(1);
 
-      function fire(){
-        window.navigator.vibrate(1);
-        socket.emit('fire', {});
+      function fire(action){
+        window.navigator.vibrate(10);
+        socket.emit('fire', action);
       }
     </script>
   </body>
