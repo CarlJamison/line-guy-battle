@@ -8,13 +8,13 @@
     <script src="/nipplejs.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <div style="width: 50%; height: 100%; position: fixed">
-      <button id="jump_button" onclick="fire(0)" style="
+      <button id="jump_button" style="
         width: 50%; height: 30%;
         background-color: red;
         touch-action: manipulation;
         border: none; border-radius: 5px;
         top: 25%; position: relative; left: 25%;"></button>
-      <button id="fire_button" onclick="fire(1)"  style="
+      <button id="fire_button" style="
         width: 50%; height: 30%;
         touch-action: manipulation;
         background-color: red;
@@ -42,12 +42,17 @@
         socket.emit('direction change', { vector: { x: 0, y: 0 } });
       });
 
-      document.getElementById("fire_button").ontouchstart = fire(0);
-      document.getElementById("jump_button").ontouchstart = fire(1);
+      document.getElementById("fire_button").ontouchstart = fire;
+      document.getElementById("jump_button").ontouchstart = jump;
 
-      function fire(action){
+      function jump(){
         window.navigator.vibrate(10);
-        socket.emit('fire', action);
+        socket.emit('fire', 0);
+      }
+
+      function fire(){
+        window.navigator.vibrate(10);
+        socket.emit('fire', 1);
       }
     </script>
   </body>

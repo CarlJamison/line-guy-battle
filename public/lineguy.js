@@ -95,7 +95,7 @@ socket.on('fire', msg => {
 		bullets.push({
 			x: guy.state.rf.x, 
 			y: guy.state.rf.y, 
-			xV: direction(guy) * 5,
+			xV: direction(guy) * 8,
 			yV: 0
 		});
 	}
@@ -280,6 +280,24 @@ function runFrame(){
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 
 	guys.forEach(guy => {
+		
+		if(guy.y > canvas.height + 1000){
+			guy.y = -100;
+			guy.dead = false;
+		}
+
+		ccw = (A, B, C) => (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x);
+		
+		if(bullets.some(p => {
+			var A = {x: p.x, y: p.y}
+			var B = {x: p.x + (p.xV * 2), y: p.y + (p.yV * 2)}
+			var C = {x: guy.x, y: guy.y};
+			var D = {x: guy.state.ab.x, y: guy.state.ab.y};
+
+			return ccw(A,C,D) != ccw(B,C,D) && ccw(A,B,C) != ccw(A,B,D)
+		})){
+			guy.dead = true;
+		};
 
 		if(guy.running){
 			setState(guy.running == 1 ? getRunningState() : getLeftRunningState(), guy);
@@ -367,6 +385,8 @@ function reflect(state){
 }
 
 function onPlatform(guy){
+	if(guy.dead) return null;
+
 	if(guy.NYV > 0) return null;
 	ccw = (A, B, C) => (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x);
 
