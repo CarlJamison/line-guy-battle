@@ -27,6 +27,11 @@ var jumping = {
 	rl: 100, ab: 100, head: -65, neck: -65,
 }
 
+var dead = {
+	lt: -80, la: -85, lf: -120, ll: -55, rt: -35, ra: -40, rf: -110,
+	rl: -10, ab: 25, head: -130, neck: -140,
+}
+
 var punch = {
 	la: 10, lf: -10, ra: 140, rf: 35
 }
@@ -54,6 +59,8 @@ socket.on('connection', id => addGuy(id));
 
 socket.on('direction change', event => {
 	var guy = getGuy(event.id);
+	guy.aim = event.radians ? event.radians : guy.aim;
+
 	newTransition = {
 		startState: getCurrentState(guy),
 		start: Date.now(),
@@ -83,6 +90,8 @@ socket.on('direction change', event => {
 socket.on('fire', msg => {
 	var guy = getGuy(msg.id);
 
+	if(guy.dead) return;
+
 	if(msg.action == 0){
 		guy.transition = {
 			startState: getCurrentState(guy),
@@ -94,9 +103,9 @@ socket.on('fire', msg => {
 	}else{
 		bullets.push({
 			x: guy.state.rf.x, 
-			y: guy.state.rf.y, 
-			xV: direction(guy) * 8,
-			yV: 0
+			y: guy.state.rf.y - 3, 
+			xV: Math.cos(guy.aim) * 5, 
+			yV: Math.sin(guy.aim) * -5
 		});
 	}
 });
@@ -288,7 +297,8 @@ function runFrame(){
 
 		ccw = (A, B, C) => (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x);
 		
-		if(bullets.some(p => {
+		bullets = bullets.filter(b => b.y < canvas.width && b.y > 0);
+		if(!guy.dead && bullets.some(p => {
 			var A = {x: p.x, y: p.y}
 			var B = {x: p.x + (p.xV * 2), y: p.y + (p.yV * 2)}
 			var C = {x: guy.x, y: guy.y};
@@ -297,7 +307,13 @@ function runFrame(){
 			return ccw(A,C,D) != ccw(B,C,D) && ccw(A,B,C) != ccw(A,B,D)
 		})){
 			guy.dead = true;
-		};
+			guy.transition = {
+				startState: getCurrentState(guy),
+				endState: dead,
+				start: Date.now(),
+				end: Date.now() + 400
+			}
+		}
 
 		if(guy.running){
 			setState(guy.running == 1 ? getRunningState() : getLeftRunningState(), guy);
@@ -337,7 +353,11 @@ function runFrame(){
 		}
 		
 		guy.falling = !p;
-		
+
+		if(guy.dead){
+			setState(dead, guy)
+		}
+
 		if(guy.transition.end && Date.now() < guy.transition.end){
 			var frame = Date.now() - guy.transition.start;
 			var d = guy.transition.end - guy.transition.start;
@@ -358,14 +378,15 @@ function runFrame(){
 			setState(guy.running == 1 || (!guy.running && guy.last == 1) ? punch : reflect(punch), guy);
 		}
 		ctx.shadowColor = ctx.strokeStyle = guy.color;
-		
+
 		renderNode(guy);
+		
 		ctx.translate(guy.state.rf.x, guy.state.rf.y);
-		ctx.rotate(guy.state.rf.a * rtod); 
+		ctx.rotate(-guy.aim); 
 		if(guy.state.rf.a > 90 ) ctx.scale(1, -1);
 		drawHandgun(0, 0);
 		if(guy.state.rf.a > 90 ) ctx.scale(1, -1);
-		ctx.rotate(-guy.state.rf.a * rtod); 
+		ctx.rotate(guy.aim); 
 		ctx.translate(-guy.state.rf.x, -guy.state.rf.y);
 	});
 

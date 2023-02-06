@@ -35,24 +35,19 @@
       var socket = io("/controller");
 
       manager.on('move', function (evt, data) {
-        socket.emit('direction change', { vector: data.vector });
+        socket.emit('direction change', { radians: data.angle.radian, vector: data.vector });
       });
 
       manager.on('end', function (evt, data) {
-        socket.emit('direction change', { vector: { x: 0, y: 0 } });
+        socket.emit('direction change', { radians: 0, vector: { x: 0, y: 0 } });
       });
 
-      document.getElementById("fire_button").ontouchstart = fire;
-      document.getElementById("jump_button").ontouchstart = jump;
+      document.getElementById("fire_button").ontouchstart = () => buttonPress(0);
+      document.getElementById("jump_button").ontouchstart = () => buttonPress(1);
 
-      function jump(){
+      function buttonPress(action){
         window.navigator.vibrate(10);
-        socket.emit('fire', 0);
-      }
-
-      function fire(){
-        window.navigator.vibrate(10);
-        socket.emit('fire', 1);
+        socket.emit('fire', action);
       }
     </script>
   </body>
