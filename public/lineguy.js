@@ -5,7 +5,7 @@ var width = Math.floor(window.innerWidth / scale) - 10;
 var height = Math.floor(window.innerHeight / scale) - 10;
 var rtod = Math.PI / 180;
 var socket = io("/view");
-
+const maxHealth = 10;
 canvas.width = width * scale;
 canvas.height = height * scale;
 
@@ -93,19 +93,21 @@ socket.on('fire', msg => {
 	if(guy.dead) return;
 
 	if(msg.action == 0){
+		if(guy.falling) return;
 		guy.transition = {
 			startState: getCurrentState(guy),
 			endState: direction(guy) == 1 ? jumping : reflect(jumping),
 			start: Date.now(),
 			end: Date.now() + 200
 		}
-		guy.NYV = 15 * scale;
+		guy.NYV = 25 * scale;
 	}else{
+		var angle = guy.aim / rtod;
 		bullets.push({
-			x: guy.state.rf.x, 
-			y: guy.state.rf.y - 3, 
-			xV: Math.cos(guy.aim) * 5, 
-			yV: Math.sin(guy.aim) * -5
+			x: guy.state.rf.x + (Math.sin(guy.aim) * 3 * ((angle > 90 && angle < 270) ? 1 : -1)), 
+			y: guy.state.rf.y + (Math.cos(guy.aim) * 3 * ((angle > 90 && angle < 270) ? 1 : -1)), 
+			xV: Math.cos(guy.aim) * 8, 
+			yV: Math.sin(guy.aim) * -8
 		});
 	}
 });
@@ -113,6 +115,23 @@ socket.on('fire', msg => {
 socket.on('remove player', id => guys = guys.filter(g => id != g.id));
 
 window.setInterval(runFrame, 10);
+
+function drawHealthbar(guy){
+	ctx.shadowColor = ctx.strokeStyle = "red";
+	ctx.lineWidth = 8;
+	ctx.beginPath();
+	ctx.moveTo(guy.x - 20, guy.y - 25);
+	ctx.lineTo(guy.x + 20, guy.y - 25);
+	ctx.stroke();
+	
+	if(!guy.health) return;
+
+	ctx.shadowColor = ctx.strokeStyle = "green";
+	ctx.beginPath();
+	ctx.moveTo(guy.x - 20, guy.y - 25);
+	ctx.lineTo(guy.x - 20 + (40 * (guy.health-1) / (maxHealth - 1)), guy.y - 25);
+	ctx.stroke();
+}
 
 function drawHandgun(x, y){
 	
@@ -169,6 +188,7 @@ function addGuy(id){
 	guy.last = 1;
 	guy.falling = false;
 	guy.color = playerColors.find(c => !guys.some(g => g.color == c));
+	guy.health = maxHealth;
 	guys.push(guy);
 
 	return guy;
@@ -293,25 +313,34 @@ function runFrame(){
 		if(guy.y > canvas.height + 1000){
 			guy.y = -100;
 			guy.dead = false;
+			guy.health = maxHealth;
 		}
 
 		ccw = (A, B, C) => (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x);
 		
 		bullets = bullets.filter(b => b.y < canvas.width && b.y > 0);
-		if(!guy.dead && bullets.some(p => {
-			var A = {x: p.x, y: p.y}
-			var B = {x: p.x + (p.xV * 2), y: p.y + (p.yV * 2)}
-			var C = {x: guy.x, y: guy.y};
-			var D = {x: guy.state.ab.x, y: guy.state.ab.y};
+		if(!guy.dead){
+			var bullet = bullets.find(p => {
+				var A = {x: p.x, y: p.y}
+				var B = {x: p.x + (p.xV * 2), y: p.y + (p.yV * 2)}
+				var C = {x: guy.state.head.x, y: guy.state.head.y};
+				var D = {x: guy.state.rl.x, y: guy.state.rl.y};
+	
+				return ccw(A,C,D) != ccw(B,C,D) && ccw(A,B,C) != ccw(A,B,D)
+			});
 
-			return ccw(A,C,D) != ccw(B,C,D) && ccw(A,B,C) != ccw(A,B,D)
-		})){
-			guy.dead = true;
-			guy.transition = {
-				startState: getCurrentState(guy),
-				endState: dead,
-				start: Date.now(),
-				end: Date.now() + 400
+			if(bullet){
+				guy.health--;
+				bullets = bullets.filter(b => b != bullet);
+				if(!guy.health){
+					guy.dead = true;
+					guy.transition = {
+						startState: getCurrentState(guy),
+						endState: dead,
+						start: Date.now(),
+						end: Date.now() + 400
+					}
+				}
 			}
 		}
 
@@ -379,13 +408,20 @@ function runFrame(){
 		}
 		ctx.shadowColor = ctx.strokeStyle = guy.color;
 
+		//Holding gun
+		if(direction(guy) == 1){
+			setState({rf: -guy.aim / rtod, ra: 50}, guy)
+		}else{
+			setState({rf: -guy.aim / rtod, ra: 120}, guy)
+		}
+
 		renderNode(guy);
-		
+		if(maxHealth > 1) drawHealthbar(guy);
 		ctx.translate(guy.state.rf.x, guy.state.rf.y);
 		ctx.rotate(-guy.aim); 
-		if(guy.state.rf.a > 90 ) ctx.scale(1, -1);
+		if(guy.state.rf.a < -90 && guy.state.rf.a > -270) ctx.scale(1, -1);
 		drawHandgun(0, 0);
-		if(guy.state.rf.a > 90 ) ctx.scale(1, -1);
+		if(guy.state.rf.a < -90 && guy.state.rf.a > -270) ctx.scale(1, -1);
 		ctx.rotate(guy.aim); 
 		ctx.translate(-guy.state.rf.x, -guy.state.rf.y);
 	});
