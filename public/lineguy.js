@@ -4,6 +4,7 @@ var ctx = canvas.getContext("2d");
 var width = Math.floor(window.innerWidth / scale) - 10;
 var height = Math.floor(window.innerHeight / scale) - 10;
 var rtod = Math.PI / 180;
+var ccw = (A, B, C) => (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x);
 var socket = io("/view");
 const maxHealth = 10;
 canvas.width = width * scale;
@@ -70,12 +71,12 @@ socket.on('direction change', event => {
 		start: Date.now(),
 		end: Date.now() + 200
 	}
-	if(event.vector.x < -0.1){
+	if(event.vector.x < -0.2){
 		if(guy.running != -1){
 			newTransition.endState = guy.falling ? reflect(jumping) : getLeftRunningState(200);
 			guy.running = -1;
 		}
-	}else if(event.vector.x > 0.1){
+	}else if(event.vector.x > 0.2){
 		if(guy.running != 1){
 			newTransition.endState = guys.falling ? jumping : getRunningState(200);
 			guy.running = 1;
@@ -98,12 +99,6 @@ socket.on('fire', msg => {
 
 	if(msg.action == 0){
 		if(guy.falling) return;
-		guy.transition = {
-			startState: getCurrentState(guy),
-			endState: direction(guy) == 1 ? jumping : reflect(jumping),
-			start: Date.now(),
-			end: Date.now() + 200
-		}
 		guy.NYV = 25 * scale;
 	}else{
 		var angle = guy.aim / rtod;
@@ -156,7 +151,6 @@ function drawHandgun(x, y){
 	
 	ctx.stroke();
 }
-
 
 function getGuy(id){
 	return guys.find(g => g.id == id) ?? addGuy(id);
@@ -279,14 +273,6 @@ function getRunningState(o = 0){
 	}
 }
 
-function getCurrentState(guy){
-	return  {
-		lt: guy.state.lt.a, la: guy.state.la.a, lf: guy.state.lf.a, ll: guy.state.ll.a,
-		rt: guy.state.rt.a, ra: guy.state.ra.a, rf: guy.state.rf.a, rl: guy.state.rl.a, 
-		ab: guy.state.ab.a, head: guy.state.head.a, neck: guy.state.neck.a,
-	}
-}
-
 function getLeftRunningState(o = 0){
 	
 	var d = 1000;
@@ -305,22 +291,25 @@ function getLeftRunningState(o = 0){
 	}
 }
 
+function getCurrentState(guy){
+	return  {
+		lt: guy.state.lt.a, la: guy.state.la.a, lf: guy.state.lf.a, ll: guy.state.ll.a,
+		rt: guy.state.rt.a, ra: guy.state.ra.a, rf: guy.state.rf.a, rl: guy.state.rl.a, 
+		ab: guy.state.ab.a, head: guy.state.head.a, neck: guy.state.neck.a,
+	}
+}
+
 function setState(state, guy){
 	Object.keys(state).forEach(k => guy.state[k].a = state[k]);
 }
 
-function runFrame(){
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+function gameLogic(){
 	guys.forEach(guy => {
-		
 		if(guy.y > canvas.height + 1000){
 			guy.y = -100;
 			guy.dead = false;
 			guy.health = maxHealth;
 		}
-
-		ccw = (A, B, C) => (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x);
 		
 		bullets = bullets.filter(b => b.y < canvas.width && b.y > 0);
 		if(!guy.dead){
@@ -329,7 +318,7 @@ function runFrame(){
 				var B = {x: p.x + (p.xV * 2), y: p.y + (p.yV * 2)}
 				var C = {x: guy.state.head.x, y: guy.state.head.y};
 				var D = {x: guy.state.rl.x, y: guy.state.rl.y};
-	
+
 				return ccw(A,C,D) != ccw(B,C,D) && ccw(A,B,C) != ccw(A,B,D)
 			});
 
@@ -348,12 +337,6 @@ function runFrame(){
 			}
 		}
 
-		if(guy.running){
-			setState(guy.running == 1 ? getRunningState() : getLeftRunningState(), guy);
-		}else{
-			setState(guy.last == 1 ? standing : reflect(standing), guy);
-		}
-
 		guy.x = (guy.x + (scale * 2 * guy.running)) % canvas.width;
 		if(guy.x < 0){
 			guy.x = canvas.width + guy.x;
@@ -364,8 +347,14 @@ function runFrame(){
 		var p = onPlatform(guy)
 		if(!p){
 			guy.NYV -= scale / 2;
-			
-			setState(direction(guy) == -1 ? reflect(jumping) : jumping, guy);
+			if(!guy.falling){
+				guy.transition = {
+					startState: getCurrentState(guy),
+					endState: direction(guy) == 1 ? jumping : reflect(jumping),
+					start: Date.now(),
+					end: Date.now() + 200
+				}
+			}
 		}else{			
 			if(guy.falling){
 				guy.transition = {
@@ -386,11 +375,13 @@ function runFrame(){
 		}
 		
 		guy.falling = !p;
+	});
+}
 
-		if(guy.dead){
-			setState(dead, guy)
-		}
-
+function runFrame(){
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	gameLogic();
+	guys.forEach(guy => {
 		if(guy.transition.end && Date.now() < guy.transition.end){
 			var frame = Date.now() - guy.transition.start;
 			var d = guy.transition.end - guy.transition.start;
@@ -405,22 +396,29 @@ function runFrame(){
 			});
 
 			setState(coolState, guy);
-		}	
+		}else if(guy.dead){
+			setState(dead, guy)
+		}else if(guy.falling){
+			setState(direction(guy) == -1 ? reflect(jumping) : jumping, guy);
+		}else if(guy.running){
+			setState(guy.running == 1 ? getRunningState() : getLeftRunningState(), guy);
+		}else{
+			setState(guy.last == 1 ? standing : reflect(standing), guy);
+		}
 
 		if(guy.punching.end && Date.now() < guy.punching.end){
 			setState(guy.running == 1 || (!guy.running && guy.last == 1) ? punch : reflect(punch), guy);
 		}
+
 		ctx.shadowColor = ctx.strokeStyle = guy.color;
 
 		//Holding gun
-		if(direction(guy) == 1){
-			setState({rf: -guy.aim / rtod, ra: 50}, guy)
-		}else{
-			setState({rf: -guy.aim / rtod, ra: 120}, guy)
-		}
+		setState({rf: -guy.aim / rtod, ra: direction(guy) == 1 ? 50 : 120 }, guy)
 
 		renderNode(guy);
+
 		if(maxHealth > 1) drawHealthbar(guy);
+
 		ctx.translate(guy.state.rf.x, guy.state.rf.y);
 		ctx.rotate(-guy.aim); 
 		if(guy.state.rf.a < -90 && guy.state.rf.a > -270) ctx.scale(1, -1);
@@ -442,14 +440,11 @@ function reflect(state){
 			coolState[k] = coolState[k] - 360;
 		}
 	});
-	return coolState
+	return coolState;
 }
 
 function onPlatform(guy){
-	if(guy.dead) return null;
-
-	if(guy.NYV > 0) return null;
-	ccw = (A, B, C) => (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x);
+	if(guy.dead || guy.NYV > 0) return null;
 
 	return platforms.find(p => {
 		var A = {x: p.sx, y: p.y}
