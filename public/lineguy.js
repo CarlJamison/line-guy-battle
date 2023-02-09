@@ -10,11 +10,15 @@ canvas.width = width * scale;
 canvas.height = height * scale;
 
 var platforms = [
-	{ y: canvas.height - 300, sx: 0, ex: canvas.width },
-	{ y: canvas.height - 400, sx: 400, ex: 600 },
-	{ y: canvas.height - 500, sx: 600, ex: 800 },
-	{ y: canvas.height - 600, sx: 800, ex: 1000 },
-	{ y: canvas.height - 700, sx: 1000, ex: 1200 },
+	{ y: canvas.height - 200, sx: 0, ex: canvas.width },
+	{ y: canvas.height - 300, sx: 400, ex: 600 },
+	{ y: canvas.height - 400, sx: 600, ex: 800 },
+	{ y: canvas.height - 400, sx: 1200, ex: 1300 },
+	{ y: canvas.height - 500, sx: 800, ex: 1200 },
+	{ y: canvas.height - 500, sx: 300, ex: 500 },
+	{ y: canvas.height - 600, sx: 100, ex: 300 },
+	{ y: canvas.height - 600, sx: 1150, ex: 1500 },
+	{ y: canvas.height - 700, sx: 450, ex: 1000 },
 ];
 
 var standing = {
