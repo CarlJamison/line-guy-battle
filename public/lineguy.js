@@ -41,6 +41,12 @@ var punch = {
 	la: 10, lf: -10, ra: 140, rf: 35
 }
 
+var guns = [
+	{ draw: drawHandgun, wait: 500, damage: 1, speed: 8, ammo: 1 },
+	//{ draw: drawBurst, wait: 2500, damage: 1, speed: 8, ammo: 5 },
+	{ draw: drawSniper, wait: 5000, damage: 10, speed: 16, ammo: 1 },
+];
+
 var playerColors = [
 	"#32a852",
 	"#00d5ff",
@@ -78,7 +84,7 @@ socket.on('direction change', event => {
 		}
 	}else if(event.vector.x > 0.2){
 		if(guy.running != 1){
-			newTransition.endState = guys.falling ? jumping : getRunningState(200);
+			newTransition.endState = guy.falling ? jumping : getRunningState(200);
 			guy.running = 1;
 		}
 	}else{
@@ -100,14 +106,24 @@ socket.on('fire', msg => {
 	if(msg.action == 0){
 		if(guy.falling) return;
 		guy.NYV = 25 * scale;
+	}else if(msg.action == 2){
+		guy.gun = (guy.gun + 1) % guns.length;
 	}else{
-		var angle = guy.aim / rtod;
-		bullets.push({
-			x: guy.state.rf.x + (Math.sin(guy.aim) * 3 * ((angle > 90 && angle < 270) ? 1 : -1)), 
-			y: guy.state.rf.y + (Math.cos(guy.aim) * 3 * ((angle > 90 && angle < 270) ? 1 : -1)), 
-			xV: Math.cos(guy.aim) * 8, 
-			yV: Math.sin(guy.aim) * -8
-		});
+
+		if(Date.now() > guy.nextBullet){
+			var coolGun = guns[guy.gun];
+			var angle = guy.aim / rtod;
+			bullets.push({
+				x: guy.state.rf.x + (Math.sin(guy.aim) * 3 * ((angle > 90 && angle < 270) ? 1 : -1)), 
+				y: guy.state.rf.y + (Math.cos(guy.aim) * 3 * ((angle > 90 && angle < 270) ? 1 : -1)), 
+				xV: Math.cos(guy.aim) * coolGun.speed, 
+				yV: Math.sin(guy.aim) * -coolGun.speed,
+				dmg: coolGun.damage,
+			});
+
+			guy.nextBullet = Date.now() + coolGun.wait;
+		}
+
 	}
 });
 
@@ -152,12 +168,70 @@ function drawHandgun(x, y){
 	ctx.stroke();
 }
 
+function drawBurst(x, y){
+	
+	ctx.shadowColor = ctx.strokeStyle = "black";
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+	ctx.moveTo(x, y);
+	ctx.lineTo(x + 5, y);
+	ctx.lineTo(x + 5, y - 3);
+	ctx.moveTo(x + 10, y - 3);
+	ctx.lineTo(x + 10, y + 3);
+	ctx.moveTo(x + 2, y - 3);
+	ctx.lineTo(x - 12, y + 3);
+	ctx.lineTo(x - 10, y - 3);
+	ctx.stroke();
+
+	ctx.lineWidth = 3;
+	ctx.beginPath();
+	ctx.moveTo(x + 20, y - 3);
+	ctx.lineTo(x - 10, y - 3);
+	ctx.moveTo(x + 2, y - 3);
+	ctx.lineTo(x - 1, y + 3);
+	
+	ctx.stroke();
+	ctx.lineWidth = 2;
+}
+
+function drawSniper(x, y){
+	
+	ctx.shadowColor = ctx.strokeStyle = "black";
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+	ctx.moveTo(x, y);
+	ctx.lineTo(x + 5, y);
+	ctx.lineTo(x + 5, y - 3);
+	ctx.moveTo(x + 20, y - 3);
+	ctx.lineTo(x + 35, y - 3);
+	ctx.moveTo(x + 2, y - 3);
+	ctx.lineTo(x - 12, y + 3);
+	ctx.lineTo(x - 10, y - 3);
+	
+	ctx.moveTo(x, y - 6);
+	ctx.lineTo(x + 15, y - 6);
+	ctx.stroke();
+
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	ctx.moveTo(x + 20, y - 3);
+	ctx.lineTo(x - 10, y - 3);
+	ctx.moveTo(x + 2, y - 3);
+	ctx.lineTo(x - 1, y + 3);
+	ctx.moveTo(x + 5, y - 3);
+	ctx.lineTo(x + 5, y - 6);
+	ctx.moveTo(x + 35, y - 3);
+	ctx.lineTo(x + 40, y - 3);
+	
+	ctx.stroke();
+}
+
 function getGuy(id){
 	return guys.find(g => g.id == id) ?? addGuy(id);
 }
 
 function addGuy(id){
-	var guy = {y: height / 2, x: width / 2};
+	var guy = {y: -100, x: Math.random() * canvas.width};
 
 	var la = {l: 11 * scale, a: 45, p: guy};
 	var lf = {l: 12 * scale, a: 90, p: la};
@@ -182,11 +256,15 @@ function addGuy(id){
 	guy.punching = { start: 0, end: 0 }
 	guy.transition = { end: 0 };
 	guy.NYV = 0;
-	guy.running = 1;
+	guy.running = 0;
 	guy.last = 1;
 	guy.falling = false;
 	guy.color = playerColors.find(c => !guys.some(g => g.color == c));
 	guy.health = maxHealth;
+	guy.aim = 0;
+	guy.gun = 0;
+	guy.nextBullet = 0;
+
 	guys.push(guy);
 
 	return guy;
@@ -323,7 +401,7 @@ function gameLogic(){
 			});
 
 			if(bullet){
-				guy.health--;
+				guy.health = guy.health > bullet.dmg ? guy.health - bullet.dmg : 0;
 				bullets = bullets.filter(b => b != bullet);
 				if(!guy.health){
 					guy.dead = true;
@@ -347,7 +425,7 @@ function gameLogic(){
 		var p = onPlatform(guy)
 		if(!p){
 			guy.NYV -= scale / 2;
-			if(!guy.falling){
+			if(!guy.falling && !guy.dead){
 				guy.transition = {
 					startState: getCurrentState(guy),
 					endState: direction(guy) == 1 ? jumping : reflect(jumping),
@@ -422,7 +500,7 @@ function runFrame(){
 		ctx.translate(guy.state.rf.x, guy.state.rf.y);
 		ctx.rotate(-guy.aim); 
 		if(guy.state.rf.a < -90 && guy.state.rf.a > -270) ctx.scale(1, -1);
-		drawHandgun(0, 0);
+		guns[guy.gun].draw(0, 0)
 		if(guy.state.rf.a < -90 && guy.state.rf.a > -270) ctx.scale(1, -1);
 		ctx.rotate(guy.aim); 
 		ctx.translate(-guy.state.rf.x, -guy.state.rf.y);

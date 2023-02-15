@@ -7,19 +7,36 @@
   <body>
     <script src="/nipplejs.js"></script>
     <script src="/socket.io/socket.io.js"></script>
-    <div style="width: 50%; height: 100%; position: fixed">
-      <button id="jump_button" style="
-        width: 50%; height: 30%;
-        background-color: red;
+    <style>
+      button.grid-item{
+        width: 70%; height: 70%;
         touch-action: manipulation;
         border: none; border-radius: 5px;
-        top: 25%; position: relative; left: 25%;"></button>
-      <button id="fire_button" style="
-        width: 50%; height: 30%;
-        touch-action: manipulation;
+        top: 15%; position: relative; left: 15%;
+      }
+      #jump_button{
+        background-color: blue;
+      }
+      #fire_button{
         background-color: red;
-        border: none; border-radius: 5px;
-        top: 25%; position: relative; left: 25%;"></button>
+      }
+      #utility_button{
+        background-color: green;
+      }
+      #special_button{
+        background-color: yellow;
+      }
+    </style>
+    <div style="width: 50%; height: 100%; position: fixed; display: grid; grid-template-columns: auto auto auto">
+      <div></div>
+      <button id="jump_button" class="grid-item"></button>
+      <div></div>
+      <button id="special_button" class="grid-item"></button>
+      <div></div>
+      <button id="utility_button" class="grid-item"></button>
+      <div></div>
+      <button id="fire_button" class="grid-item"></button>
+      <div></div>
     </div>
     <div id="zone_joystick" style="left: 50%; width: 50%; height: 100%; position: absolute;"></div>
     <script>
@@ -44,6 +61,7 @@
 
       document.getElementById("fire_button").ontouchstart = () => buttonPress(0);
       document.getElementById("jump_button").ontouchstart = () => buttonPress(1);
+      document.getElementById("utility_button").ontouchstart = () => buttonPress(2);
 
       function buttonPress(action){
         window.navigator.vibrate(10);
