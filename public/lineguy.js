@@ -1,14 +1,13 @@
 var scale = 1;
-var canvas = document.getElementById("myCanvas");
 var ctx = canvas.getContext("2d");
-var width = Math.floor(window.innerWidth / scale) - 10;
-var height = Math.floor(window.innerHeight / scale) - 10;
 var rtod = Math.PI / 180;
 var ccw = (A, B, C) => (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x);
 var socket = io("/view");
 const maxHealth = 10;
-canvas.width = width * scale;
-canvas.height = height * scale;
+
+var grd = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, 1000);
+grd.addColorStop(0, "white");
+grd.addColorStop(1, "gray");
 
 var platforms = [
 	{ y: canvas.height - 200, sx: 0, ex: canvas.width },
@@ -457,7 +456,9 @@ function gameLogic(){
 }
 
 function runFrame(){
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = grd;
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
 	gameLogic();
 	guys.forEach(guy => {
 		if(guy.transition.end && Date.now() < guy.transition.end){
