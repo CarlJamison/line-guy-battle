@@ -31,8 +31,7 @@ var joinPlatforms = [
 	{ y: canvas.height - 500, sx: 300, ex: 500 },
 	{ y: canvas.height - 600, sx: 100, ex: 300 },
 	{ y: canvas.height - 600, sx: 1250, ex: 1500 },
-	{ y: 250, sx: 400, ex: 600 },
-	{ y: 250, sx: canvas.width / 2 - 250, ex: canvas.width /2 + 250 },
+	{ y: canvas.height / 4, sx: canvas.width / 2 - canvas.height / 4, ex: canvas.width /2 + canvas.height / 4 },
 ];
 
 var standing = {
@@ -490,7 +489,7 @@ function runFrame(){
 	
 	ctx.fillStyle = grd;
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.drawImage(img, canvas.width / 2 - 250, 250, 500, 500);
+	ctx.drawImage(img, canvas.width / 2 - canvas.height / 4, canvas.height / 4, canvas.height / 2, canvas.height / 2);
 
 	gameLogic();
 	guys.forEach(guy => {
