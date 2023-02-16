@@ -9,6 +9,9 @@ app.use(express.static(__dirname + '/public'));
 app.get('/nipplejs.js', (req, res) => {
   res.sendFile(__dirname + '/node_modules/nipplejs/dist/nipplejs.js');
 });
+app.get('/qrcode.js', (req, res) => {
+  res.sendFile(__dirname + '/node_modules/qrcode/build/qrcode.js');
+});
 
 var view = io.of("/view");
 var controllers = io.of("/controller")

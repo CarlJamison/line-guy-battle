@@ -21,6 +21,20 @@ var platforms = [
 	{ y: canvas.height - 700, sx: 450, ex: 1000 },
 ];
 
+var joinPlatforms = [
+	{ y: canvas.height - 150, sx: 0, ex: canvas.width },
+	{ y: canvas.height - 300, sx: 400, ex: 600 },
+	{ y: canvas.height - 300, sx: 1300, ex: 1500 },
+	{ y: canvas.height - 400, sx: 200, ex: 400 },
+	{ y: canvas.height - 400, sx: 1600, ex: 1800 },
+	{ y: canvas.height - 500, sx: 1500, ex: 1700 },
+	{ y: canvas.height - 500, sx: 300, ex: 500 },
+	{ y: canvas.height - 600, sx: 100, ex: 300 },
+	{ y: canvas.height - 600, sx: 1250, ex: 1500 },
+	{ y: 250, sx: 400, ex: 600 },
+	{ y: 250, sx: canvas.width / 2 - 250, ex: canvas.width /2 + 250 },
+];
+
 var standing = {
 	lt: 100, la: 135, lf: 90, ll: 110, rt: 60, ra: 95, rf: 35,
 	rl: 95, ab: 100, head: -65, neck: -65,
@@ -41,9 +55,9 @@ var punch = {
 }
 
 var guns = [
-	{ draw: drawHandgun, wait: 500, damage: 1, speed: 8, ammo: 1 },
+	{ draw: drawHandgun, wait: 400, damage: 4, speed: 8, ammo: 1 },
 	//{ draw: drawBurst, wait: 2500, damage: 1, speed: 8, ammo: 5 },
-	{ draw: drawSniper, wait: 5000, damage: 10, speed: 16, ammo: 1 },
+	{ draw: drawSniper, wait: 4000, damage: 10, speed: 16, ammo: 1 },
 ];
 
 var playerColors = [
@@ -128,7 +142,31 @@ socket.on('fire', msg => {
 
 socket.on('remove player', id => guys = guys.filter(g => id != g.id));
 
-window.setInterval(runFrame, 10);
+
+/*img.addEventListener("load", () => {
+8	window.setInterval(runFrame, 10);
+});*/
+var opts = {
+	errorCorrectionLevel: 'H',
+	type: 'image/png',
+	scale:10,
+	margin: 1,
+	color: {
+		dark:"#2c2c2c",
+		light:"#ededed"
+	}
+}
+
+var img = new Image();
+QRCode.toDataURL('http://172.16.0.28', opts, function (err, url) {
+	if (err) throw err
+	img.src = url
+	
+	img.addEventListener("load", () => {
+		window.setInterval(runFrame, 10);
+	});
+});
+
 
 function drawHealthbar(guy){
 	ctx.shadowColor = ctx.strokeStyle = "red";
@@ -273,7 +311,7 @@ function renderPlatforms(){
 	ctx.shadowColor = ctx.strokeStyle = "black";
 
 	ctx.beginPath();
-	platforms.forEach(p => {
+	joinPlatforms.forEach(p => {
 		ctx.moveTo(p.sx, p.y);
 		ctx.lineTo(p.ex, p.y);
 	});
@@ -456,8 +494,10 @@ function gameLogic(){
 }
 
 function runFrame(){
+	
 	ctx.fillStyle = grd;
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.drawImage(img, canvas.width / 2 - 250, 250, 500, 500);
 
 	gameLogic();
 	guys.forEach(guy => {
@@ -525,7 +565,7 @@ function reflect(state){
 function onPlatform(guy){
 	if(guy.dead || guy.NYV > 0) return null;
 
-	return platforms.find(p => {
+	return joinPlatforms.find(p => {
 		var A = {x: p.sx, y: p.y}
 		var B = {x: p.ex, y: p.y}
 		var C = {x: guy.x, y: guy.y + (scale * 50) - 1};

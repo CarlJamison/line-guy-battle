@@ -31,7 +31,8 @@
       <div></div>
       <button id="jump_button" class="grid-item"></button>
       <div></div>
-      <button id="special_button" class="grid-item"></button>
+      <div></div>
+      <!--<button id="special_button" class="grid-item"></button>-->
       <div></div>
       <button id="utility_button" class="grid-item"></button>
       <div></div>
@@ -65,7 +66,7 @@
       document.getElementById("shield_button").ontouchstart = () => buttonPress(3);
 
       function buttonPress(action){
-        window.navigator.vibrate(10);
+        //window.navigator.vibrate(10);
         socket.emit('fire', action);
       }
     </script>
