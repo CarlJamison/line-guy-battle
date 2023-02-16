@@ -142,14 +142,10 @@ socket.on('fire', msg => {
 
 socket.on('remove player', id => guys = guys.filter(g => id != g.id));
 
-
-/*img.addEventListener("load", () => {
-8	window.setInterval(runFrame, 10);
-});*/
 var opts = {
 	errorCorrectionLevel: 'H',
 	type: 'image/png',
-	scale:10,
+	scale : 10,
 	margin: 1,
 	color: {
 		dark:"#2c2c2c",
@@ -158,13 +154,10 @@ var opts = {
 }
 
 var img = new Image();
-QRCode.toDataURL('http://172.16.0.28', opts, function (err, url) {
+QRCode.toDataURL('https://line-guy-battle.azurewebsites.net', opts, function (err, url) {
 	if (err) throw err
 	img.src = url
-	
-	img.addEventListener("load", () => {
-		window.setInterval(runFrame, 10);
-	});
+	img.onload = window.setInterval(runFrame, 10);
 });
 
 
