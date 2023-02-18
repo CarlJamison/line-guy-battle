@@ -4,6 +4,7 @@ var rtod = Math.PI / 180;
 var ccw = (A, B, C) => (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x);
 var socket = io("/view");
 const maxHealth = 10;
+const shieldRadius = 50;
 
 var grd = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, 1000);
 grd.addColorStop(0, "white");
@@ -55,7 +56,7 @@ var punch = {
 
 var guns = [
 	{ draw: drawHandgun, wait: 400, damage: 4, speed: 8, ammo: 1 },
-	//{ draw: drawBurst, wait: 2500, damage: 1, speed: 8, ammo: 5 },
+	{ draw: drawBurst, wait: 2000, damage: 2, speed: 8, ammo: 5 },
 	{ draw: drawSniper, wait: 4000, damage: 10, speed: 16, ammo: 1 },
 ];
 
@@ -124,6 +125,10 @@ socket.on('fire', msg => {
 
 		if(Date.now() > guy.nextBullet){
 			var coolGun = guns[guy.gun];
+
+			if(!guy.ammo)
+				guy.ammo = coolGun.ammo
+
 			var angle = guy.aim / rtod;
 			bullets.push({
 				x: guy.state.rf.x + (Math.sin(guy.aim) * 3 * ((angle > 90 && angle < 270) ? 1 : -1)), 
@@ -132,8 +137,10 @@ socket.on('fire', msg => {
 				yV: Math.sin(guy.aim) * -coolGun.speed,
 				dmg: coolGun.damage,
 			});
-
-			guy.nextBullet = Date.now() + coolGun.wait;
+			guy.ammo--;
+			if(!guy.ammo){
+				guy.nextBullet = Date.now() + coolGun.wait;
+			}
 		}
 
 	}
@@ -153,12 +160,12 @@ var opts = {
 }
 
 var img = new Image();
-QRCode.toDataURL('https://line-guy-battle.azurewebsites.net', opts, function (err, url) {
+QRCode.toDataURL(window.location.href.replace('/screen.html', ''), opts, (err, url) => {
 	if (err) throw err
 	img.src = url
-	img.onload = window.setInterval(runFrame, 10);
+	img.onload = window.setInterval(gameLogic, 10);
+	runFrame();
 });
-
 
 function drawHealthbar(guy){
 	ctx.shadowColor = ctx.strokeStyle = "red";
@@ -293,10 +300,18 @@ function addGuy(id){
 	guy.aim = 0;
 	guy.gun = 0;
 	guy.nextBullet = 0;
+	guy.ammo = 0;
 
 	guys.push(guy);
 
 	return guy;
+}
+
+function renderShield(guy){
+	ctx.lineWidth = 4;
+	ctx.beginPath();
+	ctx.arc(guy.x, guy.y, shieldRadius * scale, -guy.aim - 1, -guy.aim + 1);
+	ctx.stroke();
 }
 
 function renderPlatforms(){
@@ -318,8 +333,6 @@ function renderBullets(){
 	bullets.forEach(b => {
 		ctx.moveTo(b.x, b.y);
 		ctx.lineTo(b.x + (b.xV / 2), b.y + (b.yV / 2));
-		b.x += b.xV;
-		b.y += b.yV;
 	});
 	
 	ctx.stroke();
@@ -411,6 +424,17 @@ function setState(state, guy){
 }
 
 function gameLogic(){
+	
+	bullets = bullets.filter(b => {
+		b.x += b.xV;
+		b.y += b.yV;
+		return !(b.y > canvas.height || b.y < 0 || b.x > canvas.width || b.x < 0)
+		/*	return true;
+
+		return guys.some(g => Math.pow(g.x - b.x, 2) + Math.pow(g.y - b.y, 2) < Math.pow(shieldRadius, 2))
+		*/
+	});
+
 	guys.forEach(guy => {
 		if(guy.y > canvas.height + 1000){
 			guy.y = -100;
@@ -418,7 +442,6 @@ function gameLogic(){
 			guy.health = maxHealth;
 		}
 		
-		bullets = bullets.filter(b => b.y < canvas.width && b.y > 0);
 		if(!guy.dead){
 			var bullet = bullets.find(p => {
 				var A = {x: p.x, y: p.y}
@@ -491,7 +514,6 @@ function runFrame(){
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 	ctx.drawImage(img, canvas.width / 2 - canvas.height / 4, canvas.height / 4, canvas.height / 2, canvas.height / 2);
 
-	gameLogic();
 	guys.forEach(guy => {
 		if(guy.transition.end && Date.now() < guy.transition.end){
 			var frame = Date.now() - guy.transition.start;
@@ -527,6 +549,7 @@ function runFrame(){
 		setState({rf: -guy.aim / rtod, ra: direction(guy) == 1 ? 50 : 120 }, guy)
 
 		renderNode(guy);
+		//renderShield(guy);
 
 		if(maxHealth > 1) drawHealthbar(guy);
 
@@ -541,6 +564,8 @@ function runFrame(){
 
 	renderPlatforms();
 	renderBullets();
+
+	requestAnimationFrame(runFrame);
 }
 
 function reflect(state){
