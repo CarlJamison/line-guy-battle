@@ -126,7 +126,7 @@ socket.on('direction change', event => {
 
 socket.on('fire', msg => {
 	var guy = getGuy(msg.id);
-
+	var time = Date.now();
 	if(guy.dead) return;
 
 	if(msg.action == 0){
@@ -134,9 +134,14 @@ socket.on('fire', msg => {
 		guy.NYV = 25 * scale;
 	}else if(msg.action == 2){
 		guy.gun = (guy.gun + 1) % guns.length;
+	}else if(msg.action == 3){
+		if(time > guy.nextShield){
+			guy.shield = time + 500;
+			guy.nextShield = guy.shield + 5000;
+		}
 	}else{
-
-		if(Date.now() > guy.nextBullet){
+		
+		if(time > guy.nextBullet && time > guy.shield){
 			var coolGun = guns[guy.gun];
 
 			if(!guy.ammo)
@@ -306,7 +311,7 @@ function addGuy(id){
 	guy.gun = 0;
 	guy.nextBullet = 0;
 	guy.ammo = 0;
-
+	guy.nextShield = 0;
 	guys.push(guy);
 
 	return guy;
@@ -315,7 +320,8 @@ function addGuy(id){
 function renderShield(guy){
 	ctx.lineWidth = 4;
 	ctx.beginPath();
-	ctx.arc(guy.x, guy.y, shieldRadius * scale, -guy.aim - 1, -guy.aim + 1);
+	ctx.arc(guy.x, guy.y, shieldRadius * scale, 0, 2 * Math.PI);
+	//ctx.arc(guy.x, guy.y, shieldRadius * scale, -guy.aim - 1, -guy.aim + 1);
 	ctx.stroke();
 }
 
@@ -429,15 +435,15 @@ function setState(state, guy){
 }
 
 function gameLogic(){
-	
+	var time = Date.now();
+
 	bullets = bullets.filter(b => {
 		b.x += b.xV;
 		b.y += b.yV;
-		return !(b.y > canvas.height || b.y < 0 || b.x > canvas.width || b.x < 0)
-		/*	return true;
+		if(b.y > canvas.height || b.y < 0 || b.x > canvas.width || b.x < 0)
+			return false;
 
-		return guys.some(g => Math.pow(g.x - b.x, 2) + Math.pow(g.y - b.y, 2) < Math.pow(shieldRadius, 2))
-		*/
+		return !guys.some(g => time < g.shield && Math.pow(g.x - b.x, 2) + Math.pow(g.y - b.y, 2) < Math.pow(shieldRadius, 2))
 	});
 
 	guys.forEach(guy => {
@@ -465,8 +471,8 @@ function gameLogic(){
 					guy.transition = {
 						startState: getCurrentState(guy),
 						endState: dead,
-						start: Date.now(),
-						end: Date.now() + 400
+						start: time,
+						end: time + 400
 					}
 				}
 			}
@@ -486,16 +492,16 @@ function gameLogic(){
 				guy.transition = {
 					startState: getCurrentState(guy),
 					endState: direction(guy) == 1 ? jumping : reflect(jumping),
-					start: Date.now(),
-					end: Date.now() + 200
+					start: time,
+					end: time + 200
 				}
 			}
 		}else{			
 			if(guy.falling){
 				guy.transition = {
 					startState: direction(guy) == -1 ? reflect(jumping) : jumping, guy,
-					start: Date.now(),
-					end: Date.now() + 100
+					start: time,
+					end: time + 100
 				}
 
 				if(guy.running){
@@ -517,7 +523,7 @@ function runFrame(){
 	
 	ctx.fillStyle = grd;
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.drawImage(img, canvas.width / 2 - canvas.height / 4, canvas.height / 4, canvas.height / 2, canvas.height / 2);
+	ctx.drawImage(img, canvas.width / 2 - canvas.height / 6, canvas.height / 4, canvas.height / 3, canvas.height / 3);
 
 	guys.forEach(guy => {
 		if(guy.transition.end && Date.now() < guy.transition.end){
@@ -554,7 +560,9 @@ function runFrame(){
 		setState({rf: -guy.aim / rtod, ra: direction(guy) == 1 ? 50 : 120 }, guy)
 
 		renderNode(guy);
-		//renderShield(guy);
+
+		if(Date.now() < guy.shield)
+			renderShield(guy);
 
 		if(maxHealth > 1) drawHealthbar(guy);
 

@@ -30,22 +30,22 @@ controllers.on('connection', socket => {
   view.emit('connection', id);
 
   socket.on('fire', msg => {
-    view.to(msg.socketId).emit('fire', { action: msg.action, id });
+    getView(msg.socketId).emit('fire', { action: msg.action, id });
     socketId = msg.socketId;
   });
 
   socket.on('ping', msg => {
-    view.to(msg).emit('ping', socket.id);
+    getView(msg).emit('ping', socket.id);
   });
 
   socket.on('disconnect', msg => {
     console.log("Player " + id + " disconnected");
-    view.emit('remove player', id);
+    getView(socketId).emit('remove player', id);
   });
 
   socket.on('direction change', msg => {
     msg.id = id;
-    view.to(msg.socketId).emit('direction change', msg);
+    getView(msg.socketId).emit('direction change', msg);
     socketId = msg.socketId;
   });
 });
@@ -53,3 +53,8 @@ controllers.on('connection', socket => {
 http.listen(port, () => {
   console.log(`Socket.IO server running at http://localhost:${port}/`);
 });
+
+function getView(id){
+  return view
+    .to(id);
+}
