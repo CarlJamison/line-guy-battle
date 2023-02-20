@@ -16,13 +16,26 @@ app.get('/qrcode.js', (req, res) => {
 var view = io.of("/view");
 var controllers = io.of("/controller")
 
+view.on('connection', socket => {
+  socket.on('pong', msg => {
+    controllers.to(msg).emit('pong');
+  });
+
+  socket.emit('register', socket.id);
+})
+
 controllers.on('connection', socket => {
   var id = uuidv4();
-
+  var socketId = '';
   view.emit('connection', id);
 
   socket.on('fire', msg => {
-    view.emit('fire', { action: msg, id });
+    view.to(msg.socketId).emit('fire', { action: msg.action, id });
+    socketId = msg.socketId;
+  });
+
+  socket.on('ping', msg => {
+    view.to(msg).emit('ping', socket.id);
   });
 
   socket.on('disconnect', msg => {
@@ -32,7 +45,8 @@ controllers.on('connection', socket => {
 
   socket.on('direction change', msg => {
     msg.id = id;
-    view.emit('direction change', msg);
+    view.to(msg.socketId).emit('direction change', msg);
+    socketId = msg.socketId;
   });
 });
 

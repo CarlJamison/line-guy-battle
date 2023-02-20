@@ -81,6 +81,19 @@ var bullets = [];
 
 socket.on('connection', id => addGuy(id));
 
+var img = new Image();
+socket.on('register', id => {
+	console.log(id);
+	QRCode.toDataURL(window.location.href.replace('/screen.html', '/?id=' + id), opts, (err, url) => {
+		if (err) throw err
+		img.src = url
+		img.onload = window.setInterval(gameLogic, 10);
+		runFrame();
+	});
+});
+
+socket.on('ping', id => socket.emit('pong', id));
+
 socket.on('direction change', event => {
 	var guy = getGuy(event.id);
 	guy.aim = event.radians ? event.radians : guy.aim;
@@ -158,14 +171,6 @@ var opts = {
 		light:"#ededed"
 	}
 }
-
-var img = new Image();
-QRCode.toDataURL(window.location.href.replace('/screen.html', ''), opts, (err, url) => {
-	if (err) throw err
-	img.src = url
-	img.onload = window.setInterval(gameLogic, 10);
-	runFrame();
-});
 
 function drawHealthbar(guy){
 	ctx.shadowColor = ctx.strokeStyle = "red";

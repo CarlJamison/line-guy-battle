@@ -42,6 +42,7 @@
     <div id="zone_joystick" style="left: 50%; width: 50%; height: 100%; position: absolute;"></div>
     <script>
 
+      var socketId = window.location.href.split('?id=')[1];
       var options = {
         zone: document.getElementById('zone_joystick'),
         color: "red", size: 250,
@@ -52,12 +53,23 @@
 
       var socket = io("/controller");
 
+      var startTime = 0;
+      setInterval(() => {
+        startTime = Date.now();
+        socket.emit('ping', socketId);
+      }, 10000);
+
+      socket.on('pong', () => {
+        latency = Date.now() - startTime;
+        console.log(latency);
+      });
+
       manager.on('move', function (evt, data) {
-        socket.emit('direction change', { radians: data.angle.radian, vector: data.vector });
+        socket.emit('direction change', { socketId, radians: data.angle.radian, vector: data.vector });
       });
 
       manager.on('end', function (evt, data) {
-        socket.emit('direction change', { radians: 0, vector: { x: 0, y: 0 } });
+        socket.emit('direction change', { socketId, radians: 0, vector: { x: 0, y: 0 } });
       });
 
       document.getElementById("fire_button").ontouchstart = () => buttonPress(0);
@@ -67,7 +79,7 @@
 
       function buttonPress(action){
         //window.navigator.vibrate(10);
-        socket.emit('fire', action);
+        socket.emit('fire', { action, socketId });
       }
     </script>
   </body>
