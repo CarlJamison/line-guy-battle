@@ -40,7 +40,7 @@ var joinPlatforms = [
 ];
 
 var barriers = [
-	{ x: canvas.width / 2, sy: 0, ey: canvas.height },
+	{ x: canvas.width / 2, sy: canvas.height - 300, ey: canvas.height - 150 },
 ]
 
 var standing = {
@@ -66,7 +66,7 @@ var guns = [
 	{ draw: drawHandgun, wait: 400, damage: 4, speed: 12, ammo: 1 },
 	{ draw: drawBurst, wait: 2000, damage: 2, speed: 8, ammo: 5 },
 	{ draw: drawSniper, wait: 4000, damage: 10, speed: 16, ammo: 1 },
-	{ draw: drawBurst, wait: 1000, damage: 2, speed: 10, ammo: 1, gravity: 0.1, contact: (x, y) => explosions.push({
+	{ draw: drawLauncher, wait: 1000, damage: 2, speed: 9, ammo: 1, gravity: 0.1, contact: (x, y) => explosions.push({
 			particles: [], createTime: Date.now(), x, y, dmg: 1, range: 100 })},
 ];
 
@@ -249,6 +249,34 @@ function drawBurst(x, y){
 	ctx.lineTo(x - 10, y - 3);
 	ctx.moveTo(x + 2, y - 3);
 	ctx.lineTo(x - 1, y + 3);
+	
+	ctx.stroke();
+	ctx.lineWidth = 2;
+}
+
+function drawLauncher(x, y){
+	
+	ctx.shadowColor = ctx.strokeStyle = "black";
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+	ctx.moveTo(x, y);
+	ctx.lineTo(x + 5, y);
+	ctx.lineTo(x + 5, y - 3);
+	ctx.moveTo(x + 2, y - 3);
+	ctx.lineTo(x - 12, y + 3);
+	ctx.lineTo(x - 10, y - 3);
+	ctx.stroke();
+
+	ctx.lineWidth = 3;
+	ctx.beginPath();
+	ctx.moveTo(x + 20, y - 3);
+	ctx.lineTo(x - 10, y - 3);
+	ctx.moveTo(x + 2, y - 3);
+	ctx.lineTo(x - 1, y + 3);
+	ctx.moveTo(x + 10, y - 5);
+	ctx.lineTo(x + 10, y + 3);
+	ctx.lineTo(x + 14, y + 3);
+	ctx.lineTo(x + 14, y - 5);
 	
 	ctx.stroke();
 	ctx.lineWidth = 2;
@@ -496,6 +524,7 @@ function gameLogic(){
 
 	guys.forEach(guy => {
 		if(guy.y > canvas.height + 1000){
+			guy.x = Math.random() * canvas.width;
 			guy.y = -100;
 			guy.dead = false;
 			guy.health = maxHealth;
@@ -506,9 +535,9 @@ function gameLogic(){
 				{s: {x: guy.state.head.x, y: guy.state.head.y}, e: {x: guy.state.rl.x, y: guy.state.rl.y} },
 				bullets, b => ({s: {x: b.x, y: b.y}, e: {x: b.x - b.xV, y: b.y - b.yV}}));
 
-			bullet = bullet ?? collision(
+			/*bullet = bullet ?? collision(
 					{s: {x: guy.state.rf.x, y: guy.state.rf.y}, e: {x: guy.state.lf.x, y: guy.state.lf.y} },
-					bullets, b => ({s: {x: b.x, y: b.y}, e: {x: b.x - b.xV, y: b.y - b.yV}}));
+					bullets, b => ({s: {x: b.x, y: b.y}, e: {x: b.x - b.xV, y: b.y - b.yV}}));*/
 
 			if(bullet){
 				if(bullet.contact) bullet.contact(bullet.x, bullet.y);
