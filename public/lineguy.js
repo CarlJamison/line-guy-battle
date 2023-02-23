@@ -10,6 +10,10 @@ var grd = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canva
 grd.addColorStop(0, "white");
 grd.addColorStop(1, "gray");
 
+var exp = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, scale * 100);
+exp.addColorStop(0, "#ffdf6f");
+exp.addColorStop(1, "#ff000000");
+
 var platforms = [
 	{ y: canvas.height - 200, sx: 0, ex: canvas.width },
 	{ y: canvas.height - 300, sx: 400, ex: 600 },
@@ -35,6 +39,10 @@ var joinPlatforms = [
 	{ y: canvas.height / 4, sx: canvas.width / 2 - canvas.height / 4, ex: canvas.width /2 + canvas.height / 4 },
 ];
 
+var barriers = [
+	{ x: canvas.width / 2, sy: 0, ey: canvas.height },
+]
+
 var standing = {
 	lt: 100, la: 135, lf: 90, ll: 110, rt: 60, ra: 95, rf: 35,
 	rl: 95, ab: 100, head: -65, neck: -65,
@@ -55,10 +63,14 @@ var punch = {
 }
 
 var guns = [
-	{ draw: drawHandgun, wait: 400, damage: 4, speed: 8, ammo: 1 },
+	{ draw: drawHandgun, wait: 400, damage: 4, speed: 12, ammo: 1 },
 	{ draw: drawBurst, wait: 2000, damage: 2, speed: 8, ammo: 5 },
 	{ draw: drawSniper, wait: 4000, damage: 10, speed: 16, ammo: 1 },
+	{ draw: drawBurst, wait: 1000, damage: 2, speed: 10, ammo: 1, gravity: 0.1, contact: (x, y) => explosions.push({
+			particles: [], createTime: Date.now(), x, y, dmg: 1, range: 100 })},
 ];
+
+var explosions = [];
 
 var playerColors = [
 	"#32a852",
@@ -154,6 +166,8 @@ socket.on('fire', msg => {
 				xV: Math.cos(guy.aim) * coolGun.speed, 
 				yV: Math.sin(guy.aim) * -coolGun.speed,
 				dmg: coolGun.damage,
+				contact: coolGun.contact,
+				gravity: coolGun.gravity,
 			});
 			guy.ammo--;
 			if(!guy.ammo){
@@ -312,6 +326,7 @@ function addGuy(id){
 	guy.nextBullet = 0;
 	guy.ammo = 0;
 	guy.nextShield = 0;
+	guy.shield = 0;
 	guys.push(guy);
 
 	return guy;
@@ -332,6 +347,11 @@ function renderPlatforms(){
 	joinPlatforms.forEach(p => {
 		ctx.moveTo(p.sx, p.y);
 		ctx.lineTo(p.ex, p.y);
+	});
+
+	barriers.forEach(b => {
+		ctx.moveTo(b.x, b.sy);
+		ctx.lineTo(b.x, b.ey);
 	});
 	
 	ctx.stroke();
@@ -437,11 +457,39 @@ function setState(state, guy){
 function gameLogic(){
 	var time = Date.now();
 
+	explosions = explosions.filter(e => {
+		if(time < e.createTime + 100)
+		guys.forEach(g => {
+			var distance = Math.pow(g.x - e.x, 2) + Math.pow(g.y - e.y, 2)
+			var maxDist = Math.pow(e.range, 2);
+			if(distance < maxDist){
+				damageGuy(g, (maxDist - distance) / maxDist * e.dmg, time);
+			}
+		})
+
+		return e.createTime + 1000 > time;
+	})
+
 	bullets = bullets.filter(b => {
 		b.x += b.xV;
 		b.y += b.yV;
+		if(b.gravity) b.yV += b.gravity;
 		if(b.y > canvas.height || b.y < 0 || b.x > canvas.width || b.x < 0)
 			return false;
+
+		if(collision(
+			{s: {x: b.x, y: b.y}, e: {x: b.x - b.xV, y: b.y - b.yV}},
+			joinPlatforms, p => ({s: {x: p.sx, y: p.y}, e: {x: p.ex, y: p.y}}))){
+			if(b.contact) b.contact(b.x, b.y)
+			return false;
+		}
+
+		if(collision(
+			{s: {x: b.x, y: b.y}, e: {x: b.x - b.xV, y: b.y - b.yV}},
+			barriers, b => ({s: {x: b.x, y: b.sy}, e: {x: b.x, y: b.ey}}))){
+			if(b.contact) b.contact(b.x, b.y)
+			return false;
+		}
 
 		return !guys.some(g => time < g.shield && Math.pow(g.x - b.x, 2) + Math.pow(g.y - b.y, 2) < Math.pow(shieldRadius, 2))
 	});
@@ -454,31 +502,27 @@ function gameLogic(){
 		}
 		
 		if(!guy.dead){
-			var bullet = bullets.find(p => {
-				var A = {x: p.x, y: p.y}
-				var B = {x: p.x + (p.xV * 2), y: p.y + (p.yV * 2)}
-				var C = {x: guy.state.head.x, y: guy.state.head.y};
-				var D = {x: guy.state.rl.x, y: guy.state.rl.y};
+			var bullet = collision(
+				{s: {x: guy.state.head.x, y: guy.state.head.y}, e: {x: guy.state.rl.x, y: guy.state.rl.y} },
+				bullets, b => ({s: {x: b.x, y: b.y}, e: {x: b.x - b.xV, y: b.y - b.yV}}));
 
-				return ccw(A,C,D) != ccw(B,C,D) && ccw(A,B,C) != ccw(A,B,D)
-			});
+			bullet = bullet ?? collision(
+					{s: {x: guy.state.rf.x, y: guy.state.rf.y}, e: {x: guy.state.lf.x, y: guy.state.lf.y} },
+					bullets, b => ({s: {x: b.x, y: b.y}, e: {x: b.x - b.xV, y: b.y - b.yV}}));
 
 			if(bullet){
-				guy.health = guy.health > bullet.dmg ? guy.health - bullet.dmg : 0;
+				if(bullet.contact) bullet.contact(bullet.x, bullet.y);
+				damageGuy(guy, bullet.dmg, time);
 				bullets = bullets.filter(b => b != bullet);
-				if(!guy.health){
-					guy.dead = true;
-					guy.transition = {
-						startState: getCurrentState(guy),
-						endState: dead,
-						start: time,
-						end: time + 400
-					}
-				}
 			}
 		}
 
-		guy.x = (guy.x + (scale * 2 * guy.running)) % canvas.width;
+		var newX = guy.x + (scale * 2 * guy.running)
+		if(!collision({ s: { y: guy.y, x: guy.x }, e: { y: guy.y, x: newX + (scale * 30 * guy.running)}},
+			barriers, b => ({s: {x: b.x, y: b.sy}, e: {x: b.x, y: b.ey}}))){
+			guy.x = newX % canvas.width;
+		}
+
 		if(guy.x < 0){
 			guy.x = canvas.width + guy.x;
 		}
@@ -520,14 +564,50 @@ function gameLogic(){
 }
 
 function runFrame(){
-	
+	var time = Date.now();
+	var xO = Math.random() * 10 - 5;
+	var yO = Math.random() * 10 - 5;
+	if(explosions.some(e => time < e.createTime + 100)) ctx.translate(-xO, -yO);
 	ctx.fillStyle = grd;
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillRect(-10, -10, canvas.width + 10, canvas.height + 10);
 	ctx.drawImage(img, canvas.width / 2 - canvas.height / 6, canvas.height / 4, canvas.height / 3, canvas.height / 3);
 
+	var randomVector = (radius) => {
+		var x = Math.random() * 2 - 1;
+		var maxY = Math.sqrt(1 - Math.pow(x, 2));
+		return { xV: x * radius, yV:(Math.random() * 2 * maxY - maxY) * radius }
+	}
+	
+	ctx.shadowBlur = 0;
+	ctx.fillStyle = exp;
+	explosions.forEach(e => {
+		if(time < e.createTime + 100){
+			for(var i = 0; i < 100; i++){
+				e.particles.push({
+					...randomVector(5),
+					size: Math.random() * 5,
+					x: canvas.width / 2, y: canvas.height / 2
+				})
+			}
+		}
+		
+		ctx.translate(e.x - canvas.width / 2, e.y - canvas.height / 2);
+		ctx.beginPath();
+		e.particles.forEach(p => {
+			p.x += p.xV;
+			p.y += p.yV;
+			ctx.moveTo(p.x, p.y)
+			ctx.arc(p.x, p.y, p.size, 0, 2 * Math.PI);
+		})
+		ctx.fill();
+		
+		ctx.translate(canvas.width / 2 - e.x, canvas.height / 2- e.y);
+	});
+	ctx.shadowBlur = 2;
+
 	guys.forEach(guy => {
-		if(guy.transition.end && Date.now() < guy.transition.end){
-			var frame = Date.now() - guy.transition.start;
+		if(guy.transition.end && time < guy.transition.end){
+			var frame = time - guy.transition.start;
 			var d = guy.transition.end - guy.transition.start;
 			var r = Math.sin(frame * Math.PI / 2 / d);
 
@@ -550,7 +630,7 @@ function runFrame(){
 			setState(guy.last == 1 ? standing : reflect(standing), guy);
 		}
 
-		if(guy.punching.end && Date.now() < guy.punching.end){
+		if(guy.punching.end && time < guy.punching.end){
 			setState(guy.running == 1 || (!guy.running && guy.last == 1) ? punch : reflect(punch), guy);
 		}
 
@@ -561,7 +641,7 @@ function runFrame(){
 
 		renderNode(guy);
 
-		if(Date.now() < guy.shield)
+		if(time < guy.shield)
 			renderShield(guy);
 
 		if(maxHealth > 1) drawHealthbar(guy);
@@ -577,7 +657,7 @@ function runFrame(){
 
 	renderPlatforms();
 	renderBullets();
-
+	if(explosions.some(e => time < e.createTime + 100)) ctx.translate(xO, yO);
 	requestAnimationFrame(runFrame);
 }
 
@@ -595,16 +675,31 @@ function reflect(state){
 function onPlatform(guy){
 	if(guy.dead || guy.NYV > 0) return null;
 
-	return joinPlatforms.find(p => {
-		var A = {x: p.sx, y: p.y}
-		var B = {x: p.ex, y: p.y}
-		var C = {x: guy.x, y: guy.y + (scale * 50) - 1};
-		var D = {x: guy.x, y: guy.y + (scale * 50) - guy.NYV + 1};
-
-		return ccw(A,C,D) != ccw(B,C,D) && ccw(A,B,C) != ccw(A,B,D)
-	});
+	return collision(
+		{s: {x: guy.x, y: guy.y + (scale * 50) - 1}, e: {x: guy.x, y: guy.y + (scale * 50) - guy.NYV + 1}},
+		 joinPlatforms, p => ({s: {x: p.sx, y: p.y}, e: {x: p.ex, y: p.y}}));
 }
 
 function direction(guy){
 	return guy.running ? guy.running : guy.last;
+}
+
+function collision(c, lines, map){
+	return lines.find(ls => {
+		var l = map ? map(ls) : ls;
+		return ccw(c.s,l.s,l.e) != ccw(c.e,l.s,l.e) && ccw(c.s,c.e,l.s) != ccw(c.s,c.e,l.e)
+	});
+}
+
+function damageGuy(guy, dmg, time){
+	guy.health = guy.health > dmg ? guy.health - dmg : 0;
+	if(!guy.health){
+		guy.dead = true;
+		guy.transition = {
+			startState: getCurrentState(guy),
+			endState: dead,
+			start: time,
+			end: time + 400
+		}
+	}
 }
