@@ -2,13 +2,15 @@ var scale = 1;
 var ctx = canvas.getContext("2d");
 var rtod = Math.PI / 180;
 var ccw = (A, B, C) => (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x);
+var randomVector = radius => {
+	var x = Math.random() * 2 - 1;
+	var maxY = Math.sqrt(1 - Math.pow(x, 2));
+	return { xV: x * radius, yV:(Math.random() * 2 * maxY - maxY) * radius }
+}
+
 var socket = io("/view");
 const maxHealth = 10;
 const shieldRadius = 50;
-
-var grd = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, 1000);
-grd.addColorStop(0, "white");
-grd.addColorStop(1, "gray");
 
 var exp = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, scale * 100);
 exp.addColorStop(0, "#ffdf6f");
@@ -85,22 +87,37 @@ var playerColors = [
 
 ctx.shadowBlur = 2;
 ctx.lineWidth = 2 * scale;
+ctx.shadowColor = ctx.strokeStyle = "black";
 ctx.lineJoin = "round";
 ctx.lineCap = "round";
 
 var guys = [];
 var bullets = [];
 
-socket.on('connection', id => addGuy(id));
-
+var opts = {
+	errorCorrectionLevel: 'H',
+	scale : 10,
+	margin: 0,
+	color: { dark:"#2c2c2c", light:"#ededed" }
+}
 var img = new Image();
 socket.on('register', id => {
-	console.log(id);
 	QRCode.toDataURL(window.location.href.replace('/screen.html', '/?id=' + id), opts, (err, url) => {
-		if (err) throw err
 		img.src = url
-		img.onload = window.setInterval(gameLogic, 10);
-		runFrame();
+		img.onload = () => {
+			var grd = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, 1000);
+			grd.addColorStop(0, "white");
+			grd.addColorStop(1, "gray");
+			ctx.fillStyle = grd;
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			ctx.drawImage(img, canvas.width / 2 - canvas.height / 6, canvas.height / 4, canvas.height / 3, canvas.height / 3);
+			url = canvas.toDataURL();
+			img.src = url;
+			img.onload = () => {
+				window.setInterval(gameLogic, 10);
+				runFrame();
+			}
+		}
 	});
 });
 
@@ -179,17 +196,6 @@ socket.on('fire', msg => {
 });
 
 socket.on('remove player', id => guys = guys.filter(g => id != g.id));
-
-var opts = {
-	errorCorrectionLevel: 'H',
-	type: 'image/png',
-	scale : 10,
-	margin: 1,
-	color: {
-		dark:"#2c2c2c",
-		light:"#ededed"
-	}
-}
 
 function drawHealthbar(guy){
 	ctx.shadowColor = ctx.strokeStyle = "red";
@@ -369,8 +375,6 @@ function renderShield(guy){
 }
 
 function renderPlatforms(){
-	ctx.shadowColor = ctx.strokeStyle = "black";
-
 	ctx.beginPath();
 	joinPlatforms.forEach(p => {
 		ctx.moveTo(p.sx, p.y);
@@ -386,8 +390,6 @@ function renderPlatforms(){
 }
 
 function renderBullets(){
-	ctx.shadowColor = ctx.strokeStyle = "black";
-
 	ctx.beginPath();
 	bullets.forEach(b => {
 		ctx.moveTo(b.x, b.y);
@@ -423,7 +425,7 @@ function renderNode(node){
 		});
 	}
 
-	if(node.p){
+	if(!node.p){
 		ctx.stroke();
 	}
 }
@@ -479,6 +481,7 @@ function getCurrentState(guy){
 }
 
 function setState(state, guy){
+	//Expensive
 	Object.keys(state).forEach(k => guy.state[k].a = state[k]);
 }
 
@@ -597,42 +600,36 @@ function runFrame(){
 	var xO = Math.random() * 10 - 5;
 	var yO = Math.random() * 10 - 5;
 	if(explosions.some(e => time < e.createTime + 100)) ctx.translate(-xO, -yO);
-	ctx.fillStyle = grd;
-	ctx.fillRect(-10, -10, canvas.width + 10, canvas.height + 10);
-	ctx.drawImage(img, canvas.width / 2 - canvas.height / 6, canvas.height / 4, canvas.height / 3, canvas.height / 3);
+	ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-	var randomVector = (radius) => {
-		var x = Math.random() * 2 - 1;
-		var maxY = Math.sqrt(1 - Math.pow(x, 2));
-		return { xV: x * radius, yV:(Math.random() * 2 * maxY - maxY) * radius }
-	}
-	
-	ctx.shadowBlur = 0;
-	ctx.fillStyle = exp;
-	explosions.forEach(e => {
-		if(time < e.createTime + 100){
-			for(var i = 0; i < 100; i++){
-				e.particles.push({
-					...randomVector(5),
-					size: Math.random() * 5,
-					x: canvas.width / 2, y: canvas.height / 2
-				})
+	if(explosions.length){
+		ctx.shadowBlur = 0;
+		ctx.fillStyle = exp;
+		explosions.forEach(e => {
+			if(time < e.createTime + 100){
+				for(var i = 0; i < 100; i++){
+					e.particles.push({
+						...randomVector(5),
+						size: Math.random() * 5,
+						x: canvas.width / 2, y: canvas.height / 2
+					})
+				}
 			}
-		}
-		
-		ctx.translate(e.x - canvas.width / 2, e.y - canvas.height / 2);
-		ctx.beginPath();
-		e.particles.forEach(p => {
-			p.x += p.xV;
-			p.y += p.yV;
-			ctx.moveTo(p.x, p.y)
-			ctx.arc(p.x, p.y, p.size, 0, 2 * Math.PI);
-		})
-		ctx.fill();
-		
-		ctx.translate(canvas.width / 2 - e.x, canvas.height / 2- e.y);
-	});
-	ctx.shadowBlur = 2;
+			
+			ctx.translate(e.x - canvas.width / 2, e.y - canvas.height / 2);
+			ctx.beginPath();
+			e.particles.forEach(p => {
+				p.x += p.xV;
+				p.y += p.yV;
+				ctx.moveTo(p.x, p.y)
+				ctx.arc(p.x, p.y, p.size, 0, 2 * Math.PI);
+			})
+			ctx.fill();
+			
+			ctx.translate(canvas.width / 2 - e.x, canvas.height / 2- e.y);
+		});
+		ctx.shadowBlur = 2;
+	}
 
 	guys.forEach(guy => {
 		if(guy.transition.end && time < guy.transition.end){
@@ -642,6 +639,7 @@ function runFrame(){
 
 			var coolState = {};
 
+			//Expensive
 			Object.keys(guy.transition.startState).forEach(k => {
 				if(guy.transition.endState[k])
 					coolState[k] = (guy.transition.endState[k] - guy.transition.startState[k])
@@ -663,6 +661,7 @@ function runFrame(){
 			setState(guy.running == 1 || (!guy.running && guy.last == 1) ? punch : reflect(punch), guy);
 		}
 
+		//Expensive
 		ctx.shadowColor = ctx.strokeStyle = guy.color;
 
 		//Holding gun
@@ -692,6 +691,7 @@ function runFrame(){
 
 function reflect(state){
 	var coolState = {}
+	//Expensive
 	Object.keys(state).forEach(k => {
 		coolState[k] = 180 - state[k];
 		if(coolState[k] > 180){

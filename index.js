@@ -27,7 +27,6 @@ view.on('connection', socket => {
 controllers.on('connection', socket => {
   var id = uuidv4();
   var socketId = '';
-  view.emit('connection', id);
 
   socket.on('fire', msg => {
     getView(msg.socketId).emit('fire', { action: msg.action, id });
