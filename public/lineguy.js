@@ -202,19 +202,18 @@ function getGuy(id){
 function addGuy(id){
 	var guy = {y: -100, x: Math.random() * canvas.width};
 
-	guy.state = {
-		la: {l: 11 * scale, a: 45, p: guy},
-		lf: {l: 12 * scale, a: 90, p: la},
-		ra: {l: 11 * scale, a: 135, p: guy},
-		rf: {l: 12 * scale, a: 90, p: ra},
-		ab: {l: 20 * scale, a: 100, p: guy},
-		lt: {l: 15 * scale, a: 135, p: ab},
-		ll: {l: 15 * scale, a: 135, p: lt},
-		rt: {l: 15 * scale, a: 135, p: ab},
-		rl: {l: 15 * scale, a: 135, p: rt},
-		neck: {l: 3 * scale, a: -65, p: guy},
-		head: {l: 5 * scale, a: -65, p: neck},
-	}
+	var la = {l: 11 * scale, a: 45, p: guy};
+	var lf = {l: 12 * scale, a: 90, p: la};
+	var ra = {l: 11 * scale, a: 135, p: guy};
+	var rf = {l: 12 * scale, a: 90, p: ra};
+	var ab = {l: 20 * scale, a: 100, p: guy};
+	var lt = {l: 15 * scale, a: 135, p: ab};
+	var ll = {l: 15 * scale, a: 135, p: lt};
+	var rt = {l: 15 * scale, a: 135, p: ab};
+	var rl = {l: 15 * scale, a: 135, p: rt};
+	var neck = {l: 3 * scale, a: -65, p: guy};
+	var head =  {l: 5 * scale, a: -65, p: neck};
+	guy.state = { la, lf, ra, rf, ab, lt, ll, rt, rl, neck, head }
 	guy.id = id;
 	guy.punching = { start: 0, end: 0 }
 	guy.transition = { end: 0 };
