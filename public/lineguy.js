@@ -1,5 +1,5 @@
 var scale = 1;
-var ctx = canvas.getContext("2d");
+var ctx = canvas.getContext("2d", { alpha: false });
 var rtod = Math.PI / 180;
 var ccw = (A, B, C) => (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x);
 var randomVector = radius => {
@@ -86,10 +86,8 @@ var playerColors = [
 ];
 
 ctx.shadowBlur = 2;
-ctx.lineWidth = 2 * scale;
 ctx.shadowColor = ctx.strokeStyle = "black";
-ctx.lineJoin = "round";
-ctx.lineCap = "round";
+ctx.lineJoin = ctx.lineCap = "round";
 
 var guys = [];
 var bullets = [];
@@ -100,23 +98,23 @@ var opts = {
 	margin: 0,
 	color: { dark:"#2c2c2c", light:"#ededed" }
 }
-var img = new Image();
+var bgCanvas = document.createElement("canvas");
 socket.on('register', id => {
 	QRCode.toDataURL(window.location.href.replace('/screen.html', '/?id=' + id), opts, (err, url) => {
-		img.src = url
+		var img = new Image();
+		img.src = url;
 		img.onload = () => {
-			var grd = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, 1000);
+			bgCanvas.width = canvas.width;
+			bgCanvas.height = canvas.height;
+			var bgCtx = bgCanvas.getContext("2d");
+			var grd = bgCtx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, 1000);
 			grd.addColorStop(0, "white");
 			grd.addColorStop(1, "gray");
-			ctx.fillStyle = grd;
-			ctx.fillRect(0, 0, canvas.width, canvas.height);
-			ctx.drawImage(img, canvas.width / 2 - canvas.height / 6, canvas.height / 4, canvas.height / 3, canvas.height / 3);
-			url = canvas.toDataURL();
-			img.src = url;
-			img.onload = () => {
-				window.setInterval(gameLogic, 10);
-				runFrame();
-			}
+			bgCtx.fillStyle = grd;
+			bgCtx.fillRect(0, 0, canvas.width, canvas.height);
+			bgCtx.drawImage(img, canvas.width / 2 - canvas.height / 6, canvas.height / 4, canvas.height / 3, canvas.height / 3);
+			window.setInterval(gameLogic, 10);
+			runFrame();
 		}
 	});
 });
@@ -132,12 +130,12 @@ socket.on('direction change', event => {
 		start: Date.now(),
 		end: Date.now() + 200
 	}
-	if(event.vector.x < -0.2){
+	if(event.vector.x < -0.5){
 		if(guy.running != -1){
 			newTransition.endState = guy.falling ? reflect(jumping) : getLeftRunningState(200);
 			guy.running = -1;
 		}
-	}else if(event.vector.x > 0.2){
+	}else if(event.vector.x > 0.5){
 		if(guy.running != 1){
 			newTransition.endState = guy.falling ? jumping : getRunningState(200);
 			guy.running = 1;
@@ -197,129 +195,6 @@ socket.on('fire', msg => {
 
 socket.on('remove player', id => guys = guys.filter(g => id != g.id));
 
-function drawHealthbar(guy){
-	ctx.shadowColor = ctx.strokeStyle = "red";
-	ctx.lineWidth = 8;
-	ctx.beginPath();
-	ctx.moveTo(guy.x - 20, guy.y - 25);
-	ctx.lineTo(guy.x + 20, guy.y - 25);
-	ctx.stroke();
-	
-	if(!guy.health) return;
-
-	ctx.shadowColor = ctx.strokeStyle = "green";
-	ctx.beginPath();
-	ctx.moveTo(guy.x - 20, guy.y - 25);
-	ctx.lineTo(guy.x - 20 + (40 * (guy.health-1) / (maxHealth - 1)), guy.y - 25);
-	ctx.stroke();
-}
-
-function drawHandgun(x, y){
-	
-	ctx.shadowColor = ctx.strokeStyle = "black";
-	ctx.lineWidth = 1;
-	ctx.beginPath();
-	ctx.moveTo(x, y);
-	ctx.lineTo(x + 5, y);
-	ctx.lineTo(x + 5, y - 3);
-	ctx.stroke();
-
-	ctx.lineWidth = 2;
-	ctx.beginPath();
-	ctx.moveTo(x + 10, y - 3);
-	ctx.lineTo(x, y - 3);
-	ctx.moveTo(x + 2, y - 3);
-	ctx.lineTo(x - 1, y + 3);
-	
-	ctx.stroke();
-}
-
-function drawBurst(x, y){
-	
-	ctx.shadowColor = ctx.strokeStyle = "black";
-	ctx.lineWidth = 1;
-	ctx.beginPath();
-	ctx.moveTo(x, y);
-	ctx.lineTo(x + 5, y);
-	ctx.lineTo(x + 5, y - 3);
-	ctx.moveTo(x + 10, y - 3);
-	ctx.lineTo(x + 10, y + 3);
-	ctx.moveTo(x + 2, y - 3);
-	ctx.lineTo(x - 12, y + 3);
-	ctx.lineTo(x - 10, y - 3);
-	ctx.stroke();
-
-	ctx.lineWidth = 3;
-	ctx.beginPath();
-	ctx.moveTo(x + 20, y - 3);
-	ctx.lineTo(x - 10, y - 3);
-	ctx.moveTo(x + 2, y - 3);
-	ctx.lineTo(x - 1, y + 3);
-	
-	ctx.stroke();
-	ctx.lineWidth = 2;
-}
-
-function drawLauncher(x, y){
-	
-	ctx.shadowColor = ctx.strokeStyle = "black";
-	ctx.lineWidth = 1;
-	ctx.beginPath();
-	ctx.moveTo(x, y);
-	ctx.lineTo(x + 5, y);
-	ctx.lineTo(x + 5, y - 3);
-	ctx.moveTo(x + 2, y - 3);
-	ctx.lineTo(x - 12, y + 3);
-	ctx.lineTo(x - 10, y - 3);
-	ctx.stroke();
-
-	ctx.lineWidth = 3;
-	ctx.beginPath();
-	ctx.moveTo(x + 20, y - 3);
-	ctx.lineTo(x - 10, y - 3);
-	ctx.moveTo(x + 2, y - 3);
-	ctx.lineTo(x - 1, y + 3);
-	ctx.moveTo(x + 10, y - 5);
-	ctx.lineTo(x + 10, y + 3);
-	ctx.lineTo(x + 14, y + 3);
-	ctx.lineTo(x + 14, y - 5);
-	
-	ctx.stroke();
-	ctx.lineWidth = 2;
-}
-
-function drawSniper(x, y){
-	
-	ctx.shadowColor = ctx.strokeStyle = "black";
-	ctx.lineWidth = 1;
-	ctx.beginPath();
-	ctx.moveTo(x, y);
-	ctx.lineTo(x + 5, y);
-	ctx.lineTo(x + 5, y - 3);
-	ctx.moveTo(x + 20, y - 3);
-	ctx.lineTo(x + 35, y - 3);
-	ctx.moveTo(x + 2, y - 3);
-	ctx.lineTo(x - 12, y + 3);
-	ctx.lineTo(x - 10, y - 3);
-	
-	ctx.moveTo(x, y - 6);
-	ctx.lineTo(x + 15, y - 6);
-	ctx.stroke();
-
-	ctx.lineWidth = 2;
-	ctx.beginPath();
-	ctx.moveTo(x + 20, y - 3);
-	ctx.lineTo(x - 10, y - 3);
-	ctx.moveTo(x + 2, y - 3);
-	ctx.lineTo(x - 1, y + 3);
-	ctx.moveTo(x + 5, y - 3);
-	ctx.lineTo(x + 5, y - 6);
-	ctx.moveTo(x + 35, y - 3);
-	ctx.lineTo(x + 40, y - 3);
-	
-	ctx.stroke();
-}
-
 function getGuy(id){
 	return guys.find(g => g.id == id) ?? addGuy(id);
 }
@@ -327,26 +202,20 @@ function getGuy(id){
 function addGuy(id){
 	var guy = {y: -100, x: Math.random() * canvas.width};
 
-	var la = {l: 11 * scale, a: 45, p: guy};
-	var lf = {l: 12 * scale, a: 90, p: la};
-	var ra = {l: 11 * scale, a: 135, p: guy};
-	var rf = {l: 12 * scale, a: 90, p: ra};
-	var ab = {l: 20 * scale, a: 100, p: guy};
-	var lt = {l: 15 * scale, a: 135, p: ab};
-	var ll = {l: 15 * scale, a: 135, p: lt};
-	var rt = {l: 15 * scale, a: 135, p: ab};
-	var rl = {l: 15 * scale, a: 135, p: rt};
-	var neck = {l: 3 * scale, a: -65, p: guy};
-	var head = {l: 5 * scale, a: -65, p: neck, head: true};
-	la.c = [lf];
-	ra.c = [rf];
-	lt.c = [ll];
-	rt.c = [rl];
-	neck.c = [head];
-	ab.c = [lt, rt];
-	guy.c = [ab, la, ra, neck];
+	guy.state = {
+		la: {l: 11 * scale, a: 45, p: guy},
+		lf: {l: 12 * scale, a: 90, p: la},
+		ra: {l: 11 * scale, a: 135, p: guy},
+		rf: {l: 12 * scale, a: 90, p: ra},
+		ab: {l: 20 * scale, a: 100, p: guy},
+		lt: {l: 15 * scale, a: 135, p: ab},
+		ll: {l: 15 * scale, a: 135, p: lt},
+		rt: {l: 15 * scale, a: 135, p: ab},
+		rl: {l: 15 * scale, a: 135, p: rt},
+		neck: {l: 3 * scale, a: -65, p: guy},
+		head: {l: 5 * scale, a: -65, p: neck},
+	}
 	guy.id = id;
-	guy.state = { rt, rl, ll, lt, la, lf, ra, rf, head, neck, ab};
 	guy.punching = { start: 0, end: 0 }
 	guy.transition = { end: 0 };
 	guy.NYV = 0;
@@ -355,79 +224,19 @@ function addGuy(id){
 	guy.falling = false;
 	guy.color = playerColors.find(c => !guys.some(g => g.color == c));
 	guy.health = maxHealth;
-	guy.aim = 0;
-	guy.gun = 0;
-	guy.nextBullet = 0;
-	guy.ammo = 0;
-	guy.nextShield = 0;
-	guy.shield = 0;
+	guy.aim = guy.gun = guy.nextBullet = guy.ammo = guy.nextShield = guy.shield = 0;
+	guy.canvas = document.createElement("canvas");
+	guy.canvas.width = canvas.width;
+	guy.canvas.height = canvas.height;
+	guy.ctx = guy.canvas.getContext("2d");
+	guy.ctx.shadowBlur = 2;
+	guy.ctx.shadowColor = guy.ctx.strokeStyle = guy.color;
+	guy.ctx.lineWidth = 3 * scale;
+	guy.ctx.lineJoin = guy.ctx.lineCap = "round";
+
 	guys.push(guy);
 
 	return guy;
-}
-
-function renderShield(guy){
-	ctx.lineWidth = 4;
-	ctx.beginPath();
-	ctx.arc(guy.x, guy.y, shieldRadius * scale, 0, 2 * Math.PI);
-	//ctx.arc(guy.x, guy.y, shieldRadius * scale, -guy.aim - 1, -guy.aim + 1);
-	ctx.stroke();
-}
-
-function renderPlatforms(){
-	ctx.beginPath();
-	joinPlatforms.forEach(p => {
-		ctx.moveTo(p.sx, p.y);
-		ctx.lineTo(p.ex, p.y);
-	});
-
-	barriers.forEach(b => {
-		ctx.moveTo(b.x, b.sy);
-		ctx.lineTo(b.x, b.ey);
-	});
-	
-	ctx.stroke();
-}
-
-function renderBullets(){
-	ctx.beginPath();
-	bullets.forEach(b => {
-		ctx.moveTo(b.x, b.y);
-		ctx.lineTo(b.x + (b.xV / 2), b.y + (b.yV / 2));
-	});
-	
-	ctx.stroke();
-}
-
-function renderNode(node){
-	if(node.p){
-		node.x = node.p.x + (Math.cos(node.a * rtod) * node.l);
-		node.y = node.p.y + (Math.sin(node.a * rtod) * node.l);
-		
-		if(node.head){
-			ctx.moveTo(node.x + node.l, node.y);
-			ctx.arc(node.x, node.y, node.l, 0, 2 * Math.PI);
-		}else{
-			ctx.lineTo(node.x, node.y);
-		}
-	}else{
-		ctx.beginPath();
-	}
-
-	if(node.c){
-		var first = true;
-		node.c.forEach(c => {
-			if(!first || !node.p){
-				ctx.moveTo(node.x, node.y);
-			}
-			first = false;
-			renderNode(c)
-		});
-	}
-
-	if(!node.p){
-		ctx.stroke();
-	}
 }
 
 function getAngle(s, e, d, o = 0){
@@ -600,10 +409,10 @@ function runFrame(){
 	var xO = Math.random() * 10 - 5;
 	var yO = Math.random() * 10 - 5;
 	if(explosions.some(e => time < e.createTime + 100)) ctx.translate(-xO, -yO);
-	ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+	ctx.drawImage(bgCanvas, 0, 0);
 
+	ctx.shadowBlur = 0;
 	if(explosions.length){
-		ctx.shadowBlur = 0;
 		ctx.fillStyle = exp;
 		explosions.forEach(e => {
 			if(time < e.createTime + 100){
@@ -628,7 +437,6 @@ function runFrame(){
 			
 			ctx.translate(canvas.width / 2 - e.x, canvas.height / 2- e.y);
 		});
-		ctx.shadowBlur = 2;
 	}
 
 	guys.forEach(guy => {
@@ -661,28 +469,21 @@ function runFrame(){
 			setState(guy.running == 1 || (!guy.running && guy.last == 1) ? punch : reflect(punch), guy);
 		}
 
-		//Expensive
-		ctx.shadowColor = ctx.strokeStyle = guy.color;
-
 		//Holding gun
 		setState({rf: -guy.aim / rtod, ra: direction(guy) == 1 ? 50 : 120 }, guy)
-
+		
 		renderNode(guy);
-
 		if(time < guy.shield)
 			renderShield(guy);
-
-		if(maxHealth > 1) drawHealthbar(guy);
-
-		ctx.translate(guy.state.rf.x, guy.state.rf.y);
-		ctx.rotate(-guy.aim); 
-		if(guy.state.rf.a < -90 && guy.state.rf.a > -270) ctx.scale(1, -1);
-		guns[guy.gun].draw(0, 0)
-		if(guy.state.rf.a < -90 && guy.state.rf.a > -270) ctx.scale(1, -1);
-		ctx.rotate(guy.aim); 
-		ctx.translate(-guy.state.rf.x, -guy.state.rf.y);
+		ctx.drawImage(guy.canvas, 0, 0);
 	});
+	
+	ctx.shadowBlur = 2;
+	if(maxHealth > 1) drawHealthbars();
 
+	ctx.shadowColor = ctx.strokeStyle = "black";
+	drawGuns();
+	ctx.lineWidth = 2;
 	renderPlatforms();
 	renderBullets();
 	if(explosions.some(e => time < e.createTime + 100)) ctx.translate(xO, yO);
