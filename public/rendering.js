@@ -6,9 +6,18 @@ function renderShield(guy){
 	guy.ctx.stroke();
 }
 
-function renderPlatforms(){
+function renderHat(guy){
+	ctx.lineWidth = 4;
 	ctx.beginPath();
-	joinPlatforms.forEach(p => {
+	ctx.moveTo(guy.state.head.x - 10, guy.state.head.y - 5);
+	ctx.lineTo(guy.state.head.x + 10, guy.state.head.y - 5);
+	ctx.fillRect(guy.state.head.x - 7, guy.state.head.y - 5, 14, -8);
+	ctx.stroke();
+}
+
+function renderPlatforms(time){
+	ctx.beginPath();
+	(game && time > game ? platforms : joinPlatforms).forEach(p => {
 		ctx.moveTo(p.sx, p.y);
 		ctx.lineTo(p.ex, p.y);
 	});
