@@ -17,7 +17,7 @@ var reqVotes = () => guys.length > 2 ? Math.ceil(guys.length / 2) : 2;
 var socket = io("/view");
 const maxHealth = 10;
 const shieldRadius = 50;
-const START_LIVES = 10;
+const START_LIVES = 5;
 
 var exp = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, scale * 100);
 exp.addColorStop(0, "#ffdf6f");
@@ -137,7 +137,14 @@ socket.on('register', id => {
 	});
 });
 
-socket.on('ping', id => socket.emit('pong', id));
+socket.on('ping', msg => {
+	var guy = guys.find(g => g.id == msg.id);
+
+	if(guy){
+		guy.lastPing = Date.now();
+		socket.emit('pong', msg.socketId)
+	}
+});
 
 socket.on('direction change', event => {
 	var guy = getGuy(event.id);
@@ -213,8 +220,6 @@ socket.on('fire', msg => {
 	}
 });
 
-socket.on('remove player', id => guys = guys.filter(g => id != g.id));
-
 function getGuy(id){
 	return guys.find(g => g.id == id) ?? addGuy(id);
 }
@@ -255,6 +260,7 @@ function addGuy(id){
 	guy.ctx.lineWidth = 3 * scale;
 	guy.ctx.lineJoin = guy.ctx.lineCap = "round";
 	guy.ctx.font = '50px segoe ui black';
+	guy.lastPing = Date.now();
 	guys.push(guy);
 
 	return guy;
@@ -318,6 +324,7 @@ function setState(state, guy){
 function gameLogic(){
 	var time = Date.now();
 	var isGame = game && time > game;
+	guys = guys.filter(g => time - g.lastPing < 5000);
 
 	explosions = explosions.filter(e => {
 		if(time < e.createTime + 100)
@@ -344,7 +351,7 @@ function gameLogic(){
 		b.x += b.xV;
 		b.y += b.yV;
 		if(b.gravity) b.yV += b.gravity;
-		if(b.y > canvas.height || b.y < 0 || b.x > canvas.width || b.x < 0)
+		if(b.y > canvas.height || (b.y < 0 && !b.gravity) || b.x > canvas.width || b.x < 0)
 			return false;
 
 		if((!isGame) &&

@@ -25,27 +25,24 @@ view.on('connection', socket => {
 })
 
 controllers.on('connection', socket => {
-  var id = uuidv4();
-  var socketId = '';
+  var id = socket.handshake.auth.id;
+  var socketId = socket.handshake.auth.socketId;
+  if(!id){
+    id = uuidv4();
+    socket.emit('register', id)
+  }
 
   socket.on('fire', msg => {
-    getView(msg.socketId).emit('fire', { action: msg.action, id });
-    socketId = msg.socketId;
+    getView(socketId).emit('fire', { action: msg.action, id });
   });
 
   socket.on('ping', msg => {
-    getView(msg).emit('ping', socket.id);
-  });
-
-  socket.on('disconnect', msg => {
-    console.log("Player " + id + " disconnected");
-    getView(socketId).emit('remove player', id);
+    getView(socketId).emit('ping', { socketId: socket.id, id: id });
   });
 
   socket.on('direction change', msg => {
     msg.id = id;
-    getView(msg.socketId).emit('direction change', msg);
-    socketId = msg.socketId;
+    getView(socketId).emit('direction change', msg);
   });
 });
 
