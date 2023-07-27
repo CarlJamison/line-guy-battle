@@ -18,6 +18,7 @@ var socket = io("/view");
 const maxHealth = 10;
 const shieldRadius = 50;
 const START_LIVES = 5;
+const CAN_START_GAME = false;
 
 var exp = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, scale * 100);
 exp.addColorStop(0, "#ffdf6f");
@@ -339,7 +340,7 @@ function gameLogic(){
 		return e.createTime + 1000 > time;
 	});
 
-	if(!game){
+	if(!game && CAN_START_GAME){
 		startCount = guys.filter(g => Math.pow(g.x - startArea.x, 2) + Math.pow(g.y - startArea.y, 2) < Math.pow(startArea.r, 2)).length;
 		if(startCount >= reqVotes()){
 			game = time + 4000;
@@ -354,7 +355,7 @@ function gameLogic(){
 		if(b.y > canvas.height || (b.y < 0 && !b.gravity) || b.x > canvas.width || b.x < 0)
 			return false;
 
-		if((!isGame) &&
+		if((!isGame && CAN_START_GAME) &&
 			Math.pow(b.x - startArea.x, 2) + Math.pow(b.y - startArea.y, 2) < Math.pow(startArea.r, 2)){
 			return false
 		}
@@ -465,7 +466,7 @@ function runFrame(){
 	var yO = Math.random() * 10 - 5;
 	if(explosions.some(e => time < e.createTime + 100)) ctx.translate(-xO, -yO);
 
-	if(!game || time < game){
+	if((!game || time < game) && CAN_START_GAME){
 		ctx.drawImage(bgCanvas, 0, 0);
 		ctx.beginPath();
 		ctx.arc(startArea.x, startArea.y, startArea.r, 0, Math.PI*2);
@@ -477,6 +478,8 @@ function runFrame(){
 			ctx.fillText(`Game starting in ${Math.floor((game - time) / 1000)} . . .`, 50, 75, 1000);
 		}
 		ctx.closePath();
+	}else if(!CAN_START_GAME){
+		ctx.drawImage(bgCanvas, 0, 0);
 	}else{
 		ctx.drawImage(gameCanvas, 0, 0);
 	}
