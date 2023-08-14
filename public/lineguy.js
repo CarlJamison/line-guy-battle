@@ -19,6 +19,7 @@ const maxHealth = 10;
 const shieldRadius = 50;
 const START_LIVES = 5;
 const CAN_START_GAME = false;
+const KOTH_MODE = true;
 
 var exp = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, scale * 100);
 exp.addColorStop(0, "#ffdf6f");
@@ -104,6 +105,25 @@ var playerColors = [
 
 var guys = [];
 var bullets = [];
+var items = [];
+var koth = {
+	x: canvas.width / 2,
+	y: canvas.height / 4 - 50,
+	render: (x, y) => {
+		ctx.lineWidth = 4;
+		ctx.beginPath();
+		ctx.moveTo(x - 10, y - 5);
+		ctx.lineTo(x + 10, y - 5);
+		ctx.fillRect(x - 7, y - 5, 14, -8);
+		ctx.stroke();
+	},
+	pickup: guy => {
+		guy.winner = true;
+	}
+}
+if(KOTH_MODE){
+	items.push(koth)
+}
 
 var opts = {
 	errorCorrectionLevel: 'H',
@@ -348,6 +368,16 @@ function gameLogic(){
 		}
 	}
 
+	items = items.filter(i => {
+		return !guys.some(g => {
+			if(!g.dead && Math.pow(i.x - g.x, 2) + Math.pow(i.y - g.y, 2) < 100){
+				i.pickup(g);
+				return true;
+			}
+			return false;
+		})
+	});
+
 	bullets = bullets.filter(b => {
 		b.x += b.xV;
 		b.y += b.yV;
@@ -565,6 +595,11 @@ function runFrame(){
 	ctx.lineWidth = 2;
 	renderPlatforms(time);
 	renderBullets();
+
+	items.forEach(i => {
+		i.render(i.x, i.y + (Math.sin(time * Math.PI * 2 / 1000) * 5));
+	});
+
 	if(explosions.some(e => time < e.createTime + 100)) ctx.translate(xO, yO);
 	requestAnimationFrame(runFrame);
 }
@@ -604,6 +639,13 @@ function damageGuy(guy, dmg, time){
 	guy.health = guy.health > dmg ? guy.health - dmg : 0;
 	if(!guy.health){
 		guy.dead = true;
+
+		if(KOTH_MODE){
+			guy.winner = false;
+			koth.x = guy.x;
+			koth.y = guy.y;
+			items.push(koth);
+		}
 		guy.transition = {
 			startState: getCurrentState(guy),
 			endState: dead,
