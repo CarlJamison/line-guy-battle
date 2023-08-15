@@ -42,11 +42,11 @@ var joinPlatforms = [
 	{ y: canvas.height - 300, sx: 400, ex: 600 },
 	{ y: canvas.height - 300, sx: 1300, ex: 1500 },
 	{ y: canvas.height - 400, sx: 200, ex: 400 },
-	{ y: canvas.height - 400, sx: 1600, ex: 1800 },
-	{ y: canvas.height - 500, sx: 1500, ex: 1700 },
+	{ y: canvas.height - 400, sx: 1200, ex: 1450 },
+	{ y: canvas.height - 500, sx: 1400, ex: 1700 },
 	{ y: canvas.height - 500, sx: 300, ex: 500 },
 	{ y: canvas.height - 600, sx: 100, ex: 300 },
-	{ y: canvas.height - 600, sx: 1250, ex: 1500 },
+	{ y: canvas.height - 600, sx: 1050, ex: 1500 },
 	{ y: canvas.height / 4, sx: canvas.width / 2 - canvas.height / 4, ex: canvas.width /2 + canvas.height / 4 },
 ];
 
@@ -103,6 +103,8 @@ var playerColors = [
 	"#c300ff"
 ];
 
+var gameInterval = null;
+
 var guys = [];
 var bullets = [];
 var items = [];
@@ -152,7 +154,8 @@ socket.on('register', id => {
 			gameCtx.fillStyle = grd;
 			gameCtx.fillRect(0, 0, canvas.width, canvas.height);
 			bgCtx.drawImage(img, canvas.width / 2 - canvas.height / 6, canvas.height / 4, canvas.height / 3, canvas.height / 3);
-			window.setInterval(gameLogic, 10);
+			
+			if(!gameInterval) gameInterval = window.setInterval(gameLogic, 10);
 			runFrame();
 		}
 	});
@@ -346,16 +349,22 @@ function gameLogic(){
 	var time = Date.now();
 	var isGame = game && time > game;
 	guys = guys.filter(g => time - g.lastPing < 5000);
+	if(KOTH_MODE && !guys.some(g => g.winner) && !items.includes(koth)){
+		koth.x = canvas.width / 2;
+		koth.y = canvas.height / 4 - 50;
+		items.push(koth);
+	}
 
+	var nonDead = guys.filter(g => !g.dead);
 	explosions = explosions.filter(e => {
 		if(time < e.createTime + 100)
-		guys.forEach(g => {
-			var distance = Math.pow(g.x - e.x, 2) + Math.pow(g.y - e.y, 2)
-			var maxDist = Math.pow(e.range, 2);
-			if(distance < maxDist){
-				damageGuy(g, (maxDist - distance) / maxDist * e.dmg, time);
-			}
-		})
+			nonDead.forEach(g => {
+				var distance = Math.pow(g.x - e.x, 2) + Math.pow(g.y - e.y, 2)
+				var maxDist = Math.pow(e.range, 2);
+				if(distance < maxDist){
+					damageGuy(g, (maxDist - distance) / maxDist * e.dmg, time);
+				}
+			})
 
 		return e.createTime + 1000 > time;
 	});
@@ -370,7 +379,7 @@ function gameLogic(){
 
 	items = items.filter(i => {
 		return !guys.some(g => {
-			if(!g.dead && Math.pow(i.x - g.x, 2) + Math.pow(i.y - g.y, 2) < 100){
+			if(!g.dead && Math.pow(i.x - g.x, 2) + Math.pow(i.y - g.y, 2) < 144){
 				i.pickup(g);
 				return true;
 			}
@@ -596,9 +605,7 @@ function runFrame(){
 	renderPlatforms(time);
 	renderBullets();
 
-	items.forEach(i => {
-		i.render(i.x, i.y + (Math.sin(time * Math.PI * 2 / 1000) * 5));
-	});
+	items.forEach(i => i.render(i.x, i.y + (Math.sin(time * Math.PI * 2 / 1000) * 5)))
 
 	if(explosions.some(e => time < e.createTime + 100)) ctx.translate(xO, yO);
 	requestAnimationFrame(runFrame);
@@ -640,7 +647,7 @@ function damageGuy(guy, dmg, time){
 	if(!guy.health){
 		guy.dead = true;
 
-		if(KOTH_MODE){
+		if(KOTH_MODE && guy.winner){
 			guy.winner = false;
 			koth.x = guy.x;
 			koth.y = guy.y;
