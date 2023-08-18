@@ -172,7 +172,7 @@ socket.on('ping', msg => {
 
 socket.on('direction change', event => {
 	var guy = getGuy(event.id);
-	if(!guy) return;
+	if(!guy || guy.dead) return;
 
 	guy.aim = event.radians ? event.radians : guy.aim;
 
@@ -181,22 +181,25 @@ socket.on('direction change', event => {
 		start: Date.now(),
 		end: Date.now() + 200
 	}
-	if(event.vector.x < -0.5){
+	if(event.vector.x < -0.2){
 		if(guy.running != -1){
 			newTransition.endState = guy.falling ? reflect(jumping) : getLeftRunningState(200);
 			guy.running = -1;
 		}
+		guy.xV = (event.vector.x + 0.2) * 1.25
 	}else if(event.vector.x > 0.5){
 		if(guy.running != 1){
 			newTransition.endState = guy.falling ? jumping : getRunningState(200);
 			guy.running = 1;
 		}
+		guy.xV = (event.vector.x - 0.2) * 1.25
 	}else{
 		if(guy.running != 0){
 			newTransition.endState = guy.running == 1 ? standing : reflect(standing);
 			guy.last = guy.running;
 			guy.running = 0;
 		}
+		guy.xV = 0
 	}
 
 	if(newTransition.endState) guy.transition = newTransition;
@@ -269,6 +272,7 @@ function addGuy(id){
 	guy.punching = { start: 0, end: 0 }
 	guy.transition = { end: 0 };
 	guy.NYV = 0;
+	guy.xV = 0;
 	guy.running = 0;
 	guy.last = 1;
 	guy.falling = false;
@@ -362,7 +366,7 @@ function gameLogic(){
 				var distance = Math.pow(g.x - e.x, 2) + Math.pow(g.y - e.y, 2)
 				var maxDist = Math.pow(e.range, 2);
 				if(distance < maxDist){
-					damageGuy(g, (maxDist - distance) / maxDist * e.dmg, time);
+					damageGuy(g, (maxDist - distance) / maxDist * e.dmg, time, {x: (g.x - e.x) / Math.pow(distance, 2) * 1000000, y: (g.y - e.y) / Math.pow(distance, 2) * 5000000});
 				}
 			})
 
@@ -435,6 +439,7 @@ function gameLogic(){
 			guy.y = -100;
 			guy.dead = false;
 			guy.health = maxHealth;
+			guy.xV = 0;
 		}
 		
 		if(!guy.dead){
@@ -453,8 +458,8 @@ function gameLogic(){
 			}
 		}
 
-		var newX = guy.x + (scale * 2 * guy.running)
-		if(!collision({ s: { y: guy.y, x: guy.x }, e: { y: guy.y, x: newX + (scale * 30 * guy.running)}},
+		var newX = guy.x + (scale * 2 * guy.xV)
+		if(guy.dead || !collision({ s: { y: guy.y, x: guy.x }, e: { y: guy.y, x: newX + (scale * 30 * guy.running)}},
 			barriers, b => ({s: {x: b.x, y: b.sy}, e: {x: b.x, y: b.ey}}))){
 			guy.x = newX % canvas.width;
 		}
@@ -642,7 +647,7 @@ function collision(c, lines, map){
 	});
 }
 
-function damageGuy(guy, dmg, time){
+function damageGuy(guy, dmg, time, vector = null){
 	guy.health = guy.health > dmg ? guy.health - dmg : 0;
 	if(!guy.health){
 		guy.dead = true;
@@ -653,6 +658,12 @@ function damageGuy(guy, dmg, time){
 			koth.y = guy.y;
 			items.push(koth);
 		}
+
+		if(vector){
+			guy.xV += vector.x < 10 ? vector.x : 10;
+			guy.NYV -= vector.y < 100 ?  vector.y : 100;
+		}
+
 		guy.transition = {
 			startState: getCurrentState(guy),
 			endState: dead,
