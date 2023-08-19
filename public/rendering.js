@@ -46,6 +46,21 @@ function genXY(node){
 	return [node.x, node.y];
 }
 
+function renderJetpack(guy){
+
+	var s = guy.state;
+
+	ctx.lineWidth = 4;
+	ctx.beginPath();
+	ctx.moveTo(s.lt.x, s.lt.y);
+	ctx.lineTo(s.ll.x, s.ll.y);
+
+	ctx.moveTo(s.rt.x, s.rt.y);
+	ctx.lineTo(s.rl.x, s.rl.y);
+
+	ctx.stroke();
+}
+
 function renderNode(guy){
 	
 	var s = guy.state;
@@ -159,6 +174,27 @@ function drawLauncher(x, y){
 	ctx.moveTo(2, -3);
 	ctx.lineTo(-12, 3);
 	ctx.lineTo(-10, -3);
+	ctx.stroke();
+
+	ctx.lineWidth = 3;
+	ctx.beginPath();
+	ctx.moveTo(20, -3);
+	ctx.lineTo(-10, -3);
+	ctx.moveTo(2, -3);
+	ctx.lineTo(-1, 3);
+	ctx.moveTo(10, -5);
+	ctx.lineTo(10, 3);
+	ctx.lineTo(14, 3);
+	ctx.lineTo(14, -5);
+	
+	ctx.stroke();
+}
+
+function drawSuperLauncher(){
+	ctx.lineWidth = 8;
+	ctx.beginPath();
+	ctx.moveTo(20, 5);
+	ctx.lineTo(-30, 5);
 	ctx.stroke();
 
 	ctx.lineWidth = 3;

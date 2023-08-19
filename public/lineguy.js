@@ -88,7 +88,10 @@ var guns = [
 	{ draw: drawSniper, wait: 4000, damage: 10, speed: 16, ammo: 1 },
 	{ draw: drawLauncher, wait: 1000, damage: 2, speed: 9, ammo: 1, gravity: 0.1, contact: (x, y) => explosions.push({
 			particles: [], createTime: Date.now(), x, y, dmg: 1, range: 100 })},
+	{ draw: drawSuperLauncher, wait: 100, damage: 2, speed: 15, ammo: 1, gravity: 0.1, contact: (x, y) => explosions.push({
+			particles: [], createTime: Date.now(), x: x + (Math.random() * 100 - 50), y: y +  + (Math.random() * 100 - 50), dmg: 1, range: 100 })},
 ];
+var availableGuns = 4;
 
 var explosions = [];
 
@@ -211,10 +214,10 @@ socket.on('fire', msg => {
 	if(guy.dead) return;
 
 	if(msg.action == 0){
-		if(guy.falling) return;
+		if(guy.falling && !guy.hasJetpack) return;
 		guy.NYV = 25 * scale;
 	}else if(msg.action == 2){
-		guy.gun = (guy.gun + 1) % guns.length;
+		guy.gun = (guy.gun + 1) % availableGuns;
 	}else if(msg.action == 3){
 		if(time > guy.nextShield){
 			guy.shield = time + 500;
@@ -359,6 +362,48 @@ function gameLogic(){
 		items.push(koth);
 	}
 
+	if(Math.random() < 0.001){
+		var item = Math.floor(Math.random() * 3);
+
+		var newItem = {x: Math.random() * canvas.width, y: Math.random() * canvas.height, exp: Date.now() + 60000}
+
+		if(item == 0){
+			newItem.render = (x, y) => {
+				ctx.fillRect(x - 20 / 2, y - 8 / 2, 20, 8);
+				ctx.fillRect(x - 8 / 2, y - 20 / 2, 8, 20);
+			}
+			newItem.pickup = guy => guy.health = maxHealth;
+		}else if(item == 1){
+			newItem.render = (x, y) => {
+				ctx.lineWidth = 4;
+				ctx.beginPath();
+				ctx.moveTo(x, y + 10);
+				ctx.lineTo(x, y - 10);
+				ctx.lineTo(x - 10, y);
+				ctx.moveTo(x, y - 10);
+				ctx.lineTo(x + 10, y);
+			
+				ctx.stroke();
+			}
+			newItem.pickup = guy => {
+				setTimeout(() => guy.hasJetpack = false, 30000);
+				guy.hasJetpack = true;
+			}
+		}else{
+			newItem.render = (x, y) => {
+				ctx.translate(x, y);
+				drawSuperLauncher();
+				ctx.translate(-x, -y);
+			};
+			newItem.pickup = guy => {
+				setTimeout(() => guy.gun = 0, 30000);
+				guy.gun = 4
+			}
+		}
+		
+		items.push(newItem);
+	}
+
 	var nonDead = guys.filter(g => !g.dead);
 	explosions = explosions.filter(e => {
 		if(time < e.createTime + 100)
@@ -383,12 +428,12 @@ function gameLogic(){
 
 	items = items.filter(i => {
 		return !guys.some(g => {
-			if(!g.dead && Math.pow(i.x - g.x, 2) + Math.pow(i.y - g.y, 2) < 144){
+			if(!g.dead && Math.pow(i.x - g.x, 2) + Math.pow(i.y - g.y, 2) < 225){
 				i.pickup(g);
 				return true;
 			}
 			return false;
-		})
+		}) && (!i.exp || time < i.exp)
 	});
 
 	bullets = bullets.filter(b => {
@@ -552,7 +597,7 @@ function runFrame(){
 			})
 			ctx.fill();
 			
-			ctx.translate(canvas.width / 2 - e.x, canvas.height / 2- e.y);
+			ctx.translate(canvas.width / 2 - e.x, canvas.height / 2 - e.y);
 		});
 	}
 	ctx.fillStyle = "black";
@@ -599,6 +644,9 @@ function runFrame(){
 		
 		if(guy.winner)
 			renderHat(guy);
+
+		if(guy.hasJetpack)
+			renderJetpack(guy);
 	});
 	
 	ctx.shadowBlur = 2;
@@ -610,7 +658,7 @@ function runFrame(){
 	renderPlatforms(time);
 	renderBullets();
 
-	items.forEach(i => i.render(i.x, i.y + (Math.sin(time * Math.PI * 2 / 1000) * 5)))
+	items.forEach(i => i.render(i.x, i.y + (Math.sin((time - (i.exp ? i.exp : 0)) * Math.PI * 2 / 1000) * 5)))
 
 	if(explosions.some(e => time < e.createTime + 100)) ctx.translate(xO, yO);
 	requestAnimationFrame(runFrame);
@@ -660,8 +708,12 @@ function damageGuy(guy, dmg, time, vector = null){
 		}
 
 		if(vector){
-			guy.xV += vector.x < 10 ? vector.x : 10;
-			guy.NYV -= vector.y < 100 ?  vector.y : 100;
+			vector.x = vector.x < 10 ? vector.x : 10;
+			vector.x = vector.x > -10 ? vector.x : -10;
+			vector.y = vector.y < 100 ? vector.y : 100;
+			vector.y = vector.y > -100 ? vector.y : -100;
+			guy.xV += vector.x;
+			guy.NYV -= vector.y;
 		}
 
 		guy.transition = {
