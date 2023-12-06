@@ -78,6 +78,9 @@
       document.getElementById("shield_button").ontouchstart = () => buttonPress(3);
 
       function buttonPress(action){
+        if (Boolean(window.navigator.vibrate)) {
+          window.navigator.vibrate(50)
+        }
         socket.emit('fire', { action });
       }
     </script>

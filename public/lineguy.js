@@ -20,6 +20,7 @@ const shieldRadius = 50;
 const START_LIVES = 5;
 const CAN_START_GAME = false;
 const KOTH_MODE = true;
+const RESPAWN_TIME = 10000;
 
 var exp = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, scale * 100);
 exp.addColorStop(0, "#ffdf6f");
@@ -473,7 +474,7 @@ function gameLogic(){
 	}
 
 	alive.forEach(guy => {
-		if(guy.y > canvas.height + 1000){
+		if(!guy.respawn && guy.y > canvas.height + 1000){
 			if(isGame){
 				guy.lives--;
 				if(!guy.lives){
@@ -481,10 +482,16 @@ function gameLogic(){
 				}
 			}
 			guy.x = Math.random() * canvas.width;
-			guy.y = -100;
-			guy.dead = false;
+			guy.respawn = time + RESPAWN_TIME;
 			guy.health = maxHealth;
 			guy.xV = 0;
+		}
+
+		if(guy.respawn && time > guy.respawn){
+			guy.dead = false;
+			guy.y = -100;
+			guy.NYV = 0;
+			guy.respawn = null;
 		}
 		
 		if(!guy.dead){
@@ -504,9 +511,11 @@ function gameLogic(){
 		}
 
 		var newX = guy.x + (scale * 2 * guy.xV)
-		if(guy.dead || !collision({ s: { y: guy.y, x: guy.x }, e: { y: guy.y, x: newX + (scale * 30 * guy.running)}},
+		if(!collision({ s: { y: guy.y, x: guy.x }, e: { y: guy.y, x: newX + (scale * 30 * guy.running)}},
 			barriers, b => ({s: {x: b.x, y: b.sy}, e: {x: b.x, y: b.ey}}))){
 			guy.x = newX % canvas.width;
+		}else if(guy.dead){
+			guy.xV = 0;
 		}
 
 		if(guy.x < 0){
@@ -640,6 +649,8 @@ function runFrame(){
 			renderShield(guy);
 		
 		if(game && time > game) guy.ctx.fillText(guy.lives, canvas.width / guys.length * index + 50, 75, 50);
+		if(RESPAWN_TIME && guy.respawn) guy.ctx.fillText(Math.floor((guy.respawn - time) / 1000), canvas.width / guys.length * index + 50, 75, 50);
+
 		ctx.drawImage(guy.canvas, 0, 0);
 		
 		if(guy.winner)
@@ -702,8 +713,8 @@ function damageGuy(guy, dmg, time, vector = null){
 
 		if(KOTH_MODE && guy.winner){
 			guy.winner = false;
-			koth.x = guy.x;
-			koth.y = guy.y;
+			koth.x = guy.y > 0 ? guy.x : canvas.width / 2;
+			koth.y = guy.y > 0 ? guy.y : canvas.height / 4 - 50;
 			items.push(koth);
 		}
 
