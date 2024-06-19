@@ -26,14 +26,33 @@
       #shield_button{
         background-color: yellow;
       }
+      @media screen and (orientation:portrait) {
+        .buttons{
+          width: 95%; height: 50%;
+          grid-template-areas: 'r b' 'g y';
+        }
+        #zone_joystick{
+          top: 25%; left: 50%;
+        }
+      }
+
+      @media screen and (orientation:landscape) {
+        .buttons{
+          width: 50%; height: 95%;
+          grid-template-areas: 'b y' 'r g';
+        }
+        #zone_joystick{
+          left: 75%;
+        }
+      }
     </style>
-    <div style="width: 50%; height: 100%; position: fixed; display: grid; grid-template-columns: auto auto">
-      <button id="jump_button" class="grid-item"></button>
-      <button id="shield_button" class="grid-item"></button>
-      <button id="fire_button" class="grid-item"></button>
-      <button id="utility_button" class="grid-item"></button>
+    <div class="buttons" style="position: fixed; display: grid;">
+      <button id="jump_button" style="grid-area: b" class="grid-item"></button>
+      <button id="shield_button" style="grid-area: y" class="grid-item"></button>
+      <button id="fire_button" style="grid-area: r" class="grid-item"></button>
+      <button id="utility_button" style="grid-area: g" class="grid-item"></button>
     </div>
-    <div id="zone_joystick" style="left: 50%; width: 50%; height: 100%; position: absolute;"></div>
+    <div id="zone_joystick" style="height: 100%; position: absolute;"></div>
     <script>
       var userId = localStorage.getItem('userId');
       
