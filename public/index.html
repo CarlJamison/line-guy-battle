@@ -4,7 +4,7 @@
   <head>
     <title>Game Controller</title>
   </head>
-  <body>
+  <body id="controller">
     <script src="/nipplejs.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <style>
@@ -66,6 +66,10 @@
 
       manager.on('move', function (evt, data) {
         socket.emit('direction change', { radians: data.angle.radian, vector: data.vector });
+        if(!fullscreen){
+          openFullscreen()
+          fullscreen = true;
+        }
       });
 
       manager.on('end', function (evt, data) {
@@ -77,11 +81,25 @@
       document.getElementById("utility_button").ontouchstart = () => buttonPress(2);
       document.getElementById("shield_button").ontouchstart = () => buttonPress(3);
 
+      var fullscreen = false;
+
       function buttonPress(action){
         if (Boolean(window.navigator.vibrate)) {
           window.navigator.vibrate(50)
         }
         socket.emit('fire', { action });
+      }
+
+      function openFullscreen() {
+        var elem = document.getElementById("controller");
+
+        if (elem.requestFullscreen) {
+          elem.requestFullscreen();
+        } else if (elem.webkitRequestFullscreen) { /* Safari */
+          elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) { /* IE11 */
+          elem.msRequestFullscreen();
+        }
       }
     </script>
   </body>
