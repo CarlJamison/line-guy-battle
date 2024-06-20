@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+  <meta name="viewport" content="width=device-width, user-scalable=0" />
+  <head>
+    <title>Game Controller</title>
+  </head>
+  <body id="controller">
+    <script src="/nipplejs.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+      button.grid-item{
+        width: 90%; height: 90%;
+        touch-action: manipulation;
+        border: none; border-radius: 5px;
+        top: 5%; position: relative; left: 5%;
+      }
+      #jump_button{
+        background-color: blue;
+      }
+      #fire_button{
+        background-color: red;
+      }
+      #utility_button{
+        background-color: green;
+      }
+      #shield_button{
+        background-color: yellow;
+      }
+      @media screen and (orientation:portrait) {
+        .buttons{
+          width: 95%; height: 50%;
+          grid-template-areas: 'r b' 'g y';
+        }
+        #zone_joystick_p{
+          top: 25%; left: 50%;
+        }
+        #zone_joystick_l{
+          display: none;
+        }
+      }
+
+      @media screen and (orientation:landscape) {
+        .buttons{
+          width: 50%; height: 95%;
+          grid-template-areas: 'b y' 'r g';
+        }
+        #zone_joystick_l{
+          left: 75%;
+        }
+        #zone_joystick_p{
+          display: none;
+        }
+      }
+    </style>
+    <div class="buttons" style="position: fixed; display: grid;">
+      <button id="jump_button" style="grid-area: b" class="grid-item"></button>
+      <button id="shield_button" style="grid-area: y" class="grid-item"></button>
+      <button id="fire_button" style="grid-area: r" class="grid-item"></button>
+      <button id="utility_button" style="grid-area: g" class="grid-item"></button>
+    </div>
+    <div id="zone_joystick_p" style="height: 100%; position: absolute;"></div>
+    <div id="zone_joystick_l" style="height: 100%; position: absolute;"></div>
+    <script>
+      var userId = localStorage.getItem('userId');
+      
+      var socketId = window.location.href.split('?id=')[1];
+      var options = {
+        color: "red", size: 250,
+        position: {left: '50%', top: '50%'},        // preset position for 'static' mode
+        mode: 'static',
+      };
+      
+      options.zone = document.getElementById('zone_joystick_p');
+      var managerPortrait = nipplejs.create(options);
+      options.zone = document.getElementById('zone_joystick_l')
+      var managerLandscape = nipplejs.create(options);
+
+      var socket = io("/controller", {auth: {id: userId, socketId: socketId}});
+
+      socket.on('register', id => {
+        localStorage.setItem('userId', id);
+        userId = id;
+      });
+
+      var startTime = 0;
+      setInterval(() => {
+        startTime = Date.now();
+        socket.emit('ping');
+      }, 1000);
+
+      socket.on('pong', () => {
+        latency = Date.now() - startTime;
+        console.log(latency);
+      });
+
+      managerPortrait.on('move', function (evt, data) {
+        socket.emit('direction change', 
+        { radians: data.angle.radian + 1.5708, vector: {x: data.vector.y * -1, y: data.vector.x }});
+
+        openFullscreen()
+      });
+
+      managerLandscape.on('move', function (evt, data) {
+        socket.emit('direction change',  { radians: data.angle.radian, vector: data.vector });
+        
+        openFullscreen()
+      });
+
+      managerLandscape.on('end', function (evt, data) {
+        socket.emit('direction change', { radians: 0, vector: { x: 0, y: 0 } });
+      });
+      managerPortrait.on('end', function (evt, data) {
+        socket.emit('direction change', { radians: 0, vector: { x: 0, y: 0 } });
+      });
+
+      document.getElementById("fire_button").ontouchstart = () => buttonPress(0);
+      document.getElementById("jump_button").ontouchstart = () => buttonPress(1);
+      document.getElementById("utility_button").ontouchstart = () => buttonPress(2);
+      document.getElementById("shield_button").ontouchstart = () => buttonPress(3);
+
+      var fullscreen = false;
+
+      function buttonPress(action){
+        if (Boolean(window.navigator.vibrate)) {
+          window.navigator.vibrate(50)
+        }
+        socket.emit('fire', { action });
+      }
+
+      function openFullscreen() {
+        var elem = document.getElementById("controller");
+
+        if (elem.requestFullscreen) {
+          elem.requestFullscreen();
+        } else if (elem.webkitRequestFullscreen) { /* Safari */
+          elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) { /* IE11 */
+          elem.msRequestFullscreen();
+        }
+      }
+    </script>
+  </body>
+</html>

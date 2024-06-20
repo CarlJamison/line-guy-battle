@@ -20,7 +20,7 @@ const shieldRadius = 50;
 const START_LIVES = 5;
 const CAN_START_GAME = false;
 const KOTH_MODE = true;
-const RESPAWN_TIME = 10000;
+const RESPAWN_TIME = 5000;
 
 var exp = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, scale * 100);
 exp.addColorStop(0, "#ffdf6f");
@@ -140,7 +140,7 @@ var opts = {
 var bgCanvas = document.createElement("canvas");
 var gameCanvas = document.createElement("canvas");
 socket.on('register', id => {
-	QRCode.toDataURL(window.location.href.replace('/screen.html', '/?id=' + id), opts, (err, url) => {
+	QRCode.toDataURL(`${window.location.href}controller.html?id=${id}`, opts, (err, url) => {
 		var img = new Image();
 		img.src = url;
 		img.onload = () => {
