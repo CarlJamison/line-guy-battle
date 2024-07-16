@@ -84,13 +84,21 @@ var punch = {
 }
 
 var guns = [
-	{ draw: drawHandgun, wait: 400, damage: 4, speed: 12, ammo: 1 },
-	{ draw: drawBurst, wait: 2000, damage: 2, speed: 8, ammo: 8 },
-	{ draw: drawSniper, wait: 4000, damage: 10, speed: 16, ammo: 1 },
-	{ draw: drawLauncher, wait: 1000, damage: 2, speed: 9, ammo: 1, gravity: 0.1, contact: (x, y) => explosions.push({
-			particles: [], createTime: Date.now(), x, y, dmg: 1, range: 100 })},
-	{ draw: drawSuperLauncher, wait: 100, damage: 2, speed: 15, ammo: 1, gravity: 0.1, contact: (x, y) => explosions.push({
-			particles: [], createTime: Date.now(), x: x + (Math.random() * 100 - 50), y: y +  + (Math.random() * 100 - 50), dmg: 1, range: 100 })},
+	{ draw: drawHandgun, wait: 400, damage: 4, speed: 12, ammo: 1, sound: "handgun"  },
+	{ draw: drawBurst, wait: 2000, damage: 2, speed: 8, ammo: 8, sound: "machine"  },
+	{ draw: drawSniper, wait: 4000, damage: 10, speed: 16, ammo: 1, sound: "sniper" },
+	{ draw: drawLauncher, wait: 1000, damage: 2, speed: 9, ammo: 1, sound: "launcher", gravity: 0.1, contact: (x, y) => {
+			var audio = new Audio('sound/explosion.mp3');
+			audio.play();
+			explosions.push({
+				particles: [], createTime: Date.now(), x, y, dmg: 1, range: 100 })}
+		},
+	{ draw: drawSuperLauncher, wait: 100, damage: 2, speed: 15, ammo: 1, sound: "launcher", gravity: 0.1, contact: (x, y) => {
+		var audio = new Audio('sound/explosion.mp3');
+		audio.play();
+		explosions.push({
+			particles: [], createTime: Date.now(), x: x + (Math.random() * 100 - 50), y: y +  + (Math.random() * 100 - 50), dmg: 1, range: 100 })}
+		},
 ];
 var availableGuns = 4;
 
@@ -124,7 +132,10 @@ var koth = {
 		ctx.stroke();
 	},
 	pickup: guy => {
+		var audio = new Audio('sound/sj pickup.mp3');
+		audio.play();
 		guy.winner = true;
+		
 	}
 }
 if(KOTH_MODE){
@@ -231,6 +242,11 @@ socket.on('fire', msg => {
 
 			if(!guy.ammo)
 				guy.ammo = coolGun.ammo
+
+			if(coolGun.sound){
+				var audio = new Audio(`sound/${coolGun.sound}.mp3`);
+				audio.play();
+			}
 
 			var angle = guy.aim / rtod;
 			bullets.push({
@@ -397,6 +413,8 @@ function gameLogic(){
 				ctx.translate(-x, -y);
 			};
 			newItem.pickup = guy => {
+				var audio = new Audio('sound/sg pickup.mp3');
+				audio.play();
 				setTimeout(() => guy.gun = 0, 30000);
 				guy.gun = 4
 			}
@@ -429,7 +447,7 @@ function gameLogic(){
 
 	items = items.filter(i => {
 		return !guys.some(g => {
-			if(!g.dead && Math.pow(i.x - g.x, 2) + Math.pow(i.y - g.y, 2) < 225){
+			if(!g.dead && Math.pow(i.x - g.x, 2) + Math.pow(i.y - g.y, 2) < 400){
 				i.pickup(g);
 				return true;
 			}
