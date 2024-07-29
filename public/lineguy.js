@@ -15,6 +15,7 @@ var randomVector = radius => {
 var reqVotes = () => guys.length > 2 ? Math.ceil(guys.length / 2) : 2;
 
 var socket = io("/view");
+
 const maxHealth = 10;
 const shieldRadius = 50;
 const START_LIVES = 5;
@@ -58,6 +59,7 @@ var startArea = {
 	y: canvas.height - 150
 }
 
+var lastUpdate = Date.now();
 var game = null;
 
 var barriers = [
@@ -135,7 +137,6 @@ var koth = {
 		var audio = new Audio('sound/sj pickup.mp3');
 		audio.play();
 		guy.winner = true;
-		
 	}
 }
 if(KOTH_MODE){
@@ -309,6 +310,7 @@ function addGuy(id){
 	guy.ctx.lineJoin = guy.ctx.lineCap = "round";
 	guy.ctx.font = '50px segoe ui black';
 	guy.lastPing = Date.now();
+	guy.score = 0;
 	guys.push(guy);
 
 	return guy;
@@ -377,6 +379,12 @@ function gameLogic(){
 		koth.x = canvas.width / 2;
 		koth.y = canvas.height / 4 - 50;
 		items.push(koth);
+	}
+
+	//Add score
+	var currentWinner = guys.find(g => g.winner);
+	if(currentWinner){
+		currentWinner.score += time - lastUpdate;
 	}
 
 	if(Math.random() < 0.001){
@@ -574,6 +582,8 @@ function gameLogic(){
 		
 		guy.falling = !p;
 	});
+
+	lastUpdate = time;
 }
 
 function runFrame(){
@@ -667,7 +677,13 @@ function runFrame(){
 			renderShield(guy);
 		
 		if(game && time > game) guy.ctx.fillText(guy.lives, canvas.width / guys.length * index + 50, 75, 50);
-		if(RESPAWN_TIME && guy.respawn) guy.ctx.fillText(Math.floor((guy.respawn - time) / 1000), canvas.width / guys.length * index + 50, 75, 50);
+		
+		//Render score/respawn
+		var renText = Math.floor(guy.score / 1000);
+		if(RESPAWN_TIME && guy.respawn) {
+			renText += ` (${Math.floor((guy.respawn - time) / 1000)})`;
+		}
+		guy.ctx.fillText(renText, canvas.width / guys.length * index + 50, 75, canvas.width / guys.length);
 
 		ctx.drawImage(guy.canvas, 0, 0);
 		
