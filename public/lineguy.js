@@ -13,6 +13,7 @@ var randomVector = radius => {
 	return { xV: x * radius, yV:(Math.random() * 2 * maxY - maxY) * radius }
 }
 var reqVotes = () => guys.length > 2 ? Math.ceil(guys.length / 2) : 2;
+var playSound = file => (new Audio(`sound/${file}.mp3`)).play();
 
 var socket = io("/view");
 
@@ -81,40 +82,28 @@ var dead = {
 	rl: -10, ab: 25, head: -130, neck: -140,
 }
 
-var punch = {
-	la: 10, lf: -10, ra: 140, rf: 35
-}
-
 var guns = [
 	{ draw: drawHandgun, wait: 400, damage: 4, speed: 12, ammo: 1, sound: "handgun"  },
-	{ draw: drawBurst, wait: 2000, damage: 2, speed: 8, ammo: 8, sound: "machine"  },
+	{ draw: drawBurst, wait: 2000, damage: 3, speed: 8, ammo: 8, sound: "machine"  },
 	{ draw: drawSniper, wait: 4000, damage: 10, speed: 16, ammo: 1, sound: "sniper" },
 	{ draw: drawLauncher, wait: 1000, damage: 2, speed: 9, ammo: 1, sound: "launcher", gravity: 0.1, contact: (x, y) => {
-			var audio = new Audio('sound/explosion.mp3');
-			audio.play();
-			explosions.push({
-				particles: [], createTime: Date.now(), x, y, dmg: 1, range: 100 })}
-		},
+		playSound('explosion');
+		explosions.push({
+			particles: [], createTime: Date.now(), x, y, dmg: 1, range: 100 })}
+	},
 	{ draw: drawSuperLauncher, wait: 100, damage: 2, speed: 15, ammo: 1, sound: "launcher", gravity: 0.1, contact: (x, y) => {
-		var audio = new Audio('sound/explosion.mp3');
-		audio.play();
+		playSound('explosion');
 		explosions.push({
 			particles: [], createTime: Date.now(), x: x + (Math.random() * 100 - 50), y: y +  + (Math.random() * 100 - 50), dmg: 1, range: 100 })}
-		},
+	},
 ];
 var availableGuns = 4;
 
 var explosions = [];
 
 var playerColors = [
-	"#32a852",
-	"#00d5ff",
-	"#ff00fb",
-	"#ff0000",
-	"#f2ff00",
-	"#ff9d00",
-	"#1500ff",
-	"#c300ff"
+	"#00B050", "#00d5ff", "#ff00fb", "#ff0000", "#f2ff00",
+	"#f8621b", "#1500ff", "#7030A0", "#009999", "#747474"
 ];
 
 var gameInterval = null;
@@ -134,8 +123,7 @@ var koth = {
 		ctx.stroke();
 	},
 	pickup: guy => {
-		var audio = new Audio('sound/sj pickup.mp3');
-		audio.play();
+		playSound('sj pickup');
 		guy.winner = true;
 	}
 }
@@ -231,6 +219,7 @@ socket.on('fire', msg => {
 		guy.NYV = 25 * scale;
 	}else if(msg.action == 2){
 		guy.gun = (guy.gun + 1) % availableGuns;
+		guy.ammo = 0;
 	}else if(msg.action == 3){
 		if(time > guy.nextShield){
 			guy.shield = time + 500;
@@ -245,8 +234,7 @@ socket.on('fire', msg => {
 				guy.ammo = coolGun.ammo
 
 			if(coolGun.sound){
-				var audio = new Audio(`sound/${coolGun.sound}.mp3`);
-				audio.play();
+				playSound(coolGun.sound);
 			}
 
 			var angle = guy.aim / rtod;
@@ -290,7 +278,6 @@ function addGuy(id){
 	var head =  {l: 5 * scale, a: -65, p: neck};
 	guy.state = { la, lf, ra, rf, ab, lt, ll, rt, rl, neck, head }
 	guy.id = id;
-	guy.punching = { start: 0, end: 0 }
 	guy.transition = { end: 0 };
 	guy.NYV = 0;
 	guy.xV = 0;
@@ -298,6 +285,9 @@ function addGuy(id){
 	guy.last = 1;
 	guy.falling = false;
 	guy.color = playerColors.find(c => !guys.some(g => g.color == c));
+	if(!guy.color){
+		guy.color = '#' + Math.floor(Math.random()*16777215).toString(16);
+	}
 	guy.health = maxHealth;
 	guy.aim = guy.gun = guy.nextBullet = guy.ammo = guy.nextShield = guy.shield = 0;
 	guy.canvas = document.createElement("canvas");
@@ -367,8 +357,7 @@ function getCurrentState(guy){
 }
 
 function setState(state, guy){
-	//Expensive
-	Object.keys(state).forEach(k => guy.state[k].a = state[k]);
+	Object.entries(state).forEach(([k, v]) => guy.state[k].a = v);
 }
 
 function gameLogic(){
@@ -421,8 +410,7 @@ function gameLogic(){
 				ctx.translate(-x, -y);
 			};
 			newItem.pickup = guy => {
-				var audio = new Audio('sound/sg pickup.mp3');
-				audio.play();
+				playSound('sg pickup');
 				setTimeout(() => guy.gun = 0, 30000);
 				guy.gun = 4
 			}
@@ -547,6 +535,9 @@ function gameLogic(){
 		if(guy.x < 0){
 			guy.x = canvas.width + guy.x;
 		}
+		if(guy.y < 0 && guy.NYV > 0){
+			guy.NYV = 0;
+		}
 
 		guy.y -= guy.NYV / 4 * scale;
 		
@@ -665,10 +656,6 @@ function runFrame(){
 			setState(guy.last == 1 ? standing : reflect(standing), guy);
 		}
 
-		if(guy.punching.end && time < guy.punching.end){
-			setState(guy.running == 1 || (!guy.running && guy.last == 1) ? punch : reflect(punch), guy);
-		}
-
 		//Holding gun
 		setState({rf: -guy.aim / rtod, ra: direction(guy) == 1 ? 50 : 120 }, guy)
 		
@@ -710,15 +697,8 @@ function runFrame(){
 }
 
 function reflect(state){
-	var coolState = {}
-	//Expensive
-	Object.keys(state).forEach(k => {
-		coolState[k] = 180 - state[k];
-		if(coolState[k] > 180){
-			coolState[k] = coolState[k] - 360;
-		}
-	});
-	return coolState;
+	return Object.fromEntries(
+		Object.entries(state).map(([key, val]) => [key, (val > 0 ? 180 : -180) - val]));
 }
 
 function onPlatform(guy, time){
