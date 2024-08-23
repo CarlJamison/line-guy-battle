@@ -114,14 +114,7 @@ var items = [];
 var koth = {
 	x: canvas.width / 2,
 	y: canvas.height / 4 - 50,
-	render: (x, y) => {
-		ctx.lineWidth = 4;
-		ctx.beginPath();
-		ctx.moveTo(x - 10, y - 5);
-		ctx.lineTo(x + 10, y - 5);
-		ctx.fillRect(x - 7, y - 5, 14, -8);
-		ctx.stroke();
-	},
+	render: drawHat,
 	pickup: guy => {
 		playSound('sj pickup');
 		guy.winner = true;
@@ -382,33 +375,16 @@ function gameLogic(){
 		var newItem = {x: Math.random() * canvas.width, y: Math.random() * canvas.height, exp: Date.now() + 60000}
 
 		if(item == 0){
-			newItem.render = (x, y) => {
-				ctx.fillRect(x - 20 / 2, y - 8 / 2, 20, 8);
-				ctx.fillRect(x - 8 / 2, y - 20 / 2, 8, 20);
-			}
+			newItem.render = drawHealth;
 			newItem.pickup = guy => guy.health = maxHealth;
 		}else if(item == 1){
-			newItem.render = (x, y) => {
-				ctx.lineWidth = 4;
-				ctx.beginPath();
-				ctx.moveTo(x, y + 10);
-				ctx.lineTo(x, y - 10);
-				ctx.lineTo(x - 10, y);
-				ctx.moveTo(x, y - 10);
-				ctx.lineTo(x + 10, y);
-			
-				ctx.stroke();
-			}
+			newItem.render = drawSuperJump;
 			newItem.pickup = guy => {
 				setTimeout(() => guy.hasJetpack = false, 30000);
 				guy.hasJetpack = true;
 			}
 		}else{
-			newItem.render = (x, y) => {
-				ctx.translate(x, y);
-				drawSuperLauncher();
-				ctx.translate(-x, -y);
-			};
+			newItem.render = drawSuperLauncherPickup;
 			newItem.pickup = guy => {
 				playSound('sg pickup');
 				setTimeout(() => guy.gun = 0, 30000);

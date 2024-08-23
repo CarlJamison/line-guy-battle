@@ -240,3 +240,35 @@ function drawSniper(x, y){
 	
 	ctx.stroke();
 }
+
+function drawHat(x, y){
+	ctx.lineWidth = 4;
+	ctx.beginPath();
+	ctx.moveTo(x - 10, y - 5);
+	ctx.lineTo(x + 10, y - 5);
+	ctx.fillRect(x - 7, y - 5, 14, -8);
+	ctx.stroke();
+}
+
+function drawHealth(x, y){
+	ctx.fillRect(x - 20 / 2, y - 8 / 2, 20, 8);
+	ctx.fillRect(x - 8 / 2, y - 20 / 2, 8, 20);
+}
+
+function drawSuperJump(x, y){
+	ctx.lineWidth = 4;
+	ctx.beginPath();
+	ctx.moveTo(x, y + 10);
+	ctx.lineTo(x, y - 10);
+	ctx.lineTo(x - 10, y);
+	ctx.moveTo(x, y - 10);
+	ctx.lineTo(x + 10, y);
+
+	ctx.stroke();
+}
+
+function drawSuperLauncherPickup(x, y){
+	ctx.translate(x, y);
+	drawSuperLauncher();
+	ctx.translate(-x, -y);
+}
