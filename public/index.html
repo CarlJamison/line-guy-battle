@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
-    <body style="overflow: hidden; margin:0">
-        <canvas id="myCanvas"></canvas>
+    <body style="overflow: hidden; background-color: darksalmon;">
+        <div style="display: flex; justify-content: center;">
+            <canvas style="width: 100%; border-radius: 20px" id="myCanvas"></canvas>
+        </div>
         <script src="/socket.io/socket.io.js"></script>
         <script src="/nosleep.js"></script>
         <script src="/qrcode.js"></script>
@@ -12,9 +14,11 @@
                 noSleep.enable();
             }, false);
             
-            var canvas = document.getElementById("myCanvas");           
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;            
+            var canvas = document.getElementById("myCanvas");
+            let aspect = window.innerWidth / window.innerHeight;
+            aspect = Math.min(Math.max(aspect, 1.66), 2)           
+            canvas.width = 1500;
+            canvas.height = canvas.width / aspect;            
         </script>
         <script src="rendering.js"></script>        
         <script src="lineguy.js"></script>
